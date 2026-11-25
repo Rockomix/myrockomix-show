@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Presentación flotante de SHOW SCORE." />
+    <title>myRockomix SHOW · SCORE</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/show-score.css" />
+  </head>
+  <body>
+    <section id="score-overlay" class="score-overlay" aria-live="assertive" aria-hidden="true">
+      <div class="score-overlay-card">
+        <img class="score-logo" src="assets/images/my-karaoke-party-logo.png" alt="myRockomix Party" />
+        <p id="score-singer" class="score-singer">Calificación de la interpretación</p>
+        <p id="score-number" class="score-number">1</p>
+        <p id="score-phrase" class="score-phrase" hidden></p>
+        <p id="score-song" class="score-song" hidden></p>
+        <div id="score-confetti" class="score-confetti" aria-hidden="true"></div>
+      </div>
+    </section>
+    <script src="js/show-score.js"></script>
+  </body>
+</html>

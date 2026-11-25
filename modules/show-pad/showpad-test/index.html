@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Show Pad | ROCKOMIX</title>
+<style>
+:root{color-scheme:dark;--bg:#101216;--panel:#191c22;--panel2:#15181d;--line:#343941;--txt:#f4f6f8;--muted:#9299a4;--blue:#42a5ff;--green:#35d49a;--red:#ff626e}
+*{box-sizing:border-box}body{margin:0;padding:22px;background:#101216;color:var(--txt);font-family:Inter,"Segoe UI",Arial,sans-serif}
+.app{width:min(1120px,100%);margin:auto}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px}.top h1{font-size:25px;line-height:1;margin:0;color:#fff;font-weight:850;letter-spacing:.2px}.sub{font-size:10px;letter-spacing:2.2px;color:#aab0b9;font-weight:800;margin-top:7px}.tag{border:1px solid #3a414b;background:#20242b;color:#dce2e9;border-radius:7px;padding:8px 12px;font-size:10px;font-weight:800;letter-spacing:1px}.config-file{display:none;border:1px solid #3b6688;background:#172b3b;color:#b9e0ff;border-radius:7px;padding:9px 12px;font-size:10px;font-weight:850;letter-spacing:.6px;cursor:pointer}.config-file:hover{background:#203d54}.load-fx{display:none;border:1px solid #e6c34d;background:linear-gradient(135deg,#f7df72,#e8b92e);color:#241d08;border-radius:7px;padding:9px 12px;font-size:10px;font-weight:900;letter-spacing:.5px;cursor:pointer;box-shadow:0 2px 9px #e8b92e35}.load-fx:hover{background:linear-gradient(135deg,#ffeb91,#f0c84c)}.load-fx:disabled{opacity:.65;cursor:wait}.top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.controls,.panel{background:var(--panel);border:1px solid #30353d;border-radius:10px;padding:14px;margin-bottom:13px}.controls{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:12px;align-items:end}.label{display:block;color:#9da5b0;font-size:10px;font-weight:800;letter-spacing:1.1px;margin-bottom:7px}select,input,button{font:inherit}select{height:39px;width:100%;background:#101318;border:1px solid #3b424c;border-radius:7px;color:var(--txt);padding:0 11px}.status{height:39px;min-width:120px;display:flex;align-items:center;gap:8px;padding:0 11px;background:#101318;border:1px solid #343b45;border-radius:7px;color:#9ca5b1;font-size:11px;font-weight:800}.dot{width:7px;height:7px;border-radius:50%;background:#657184}.status.on{color:#a5f0d2;border-color:#276c55}.status.on .dot{background:var(--green);box-shadow:0 0 9px var(--green)}.power{height:39px;min-width:120px;padding:0 13px;border:1px solid #3c4652;border-radius:7px;background:#242a32;color:#e9edf2;font-size:11px;font-weight:800;cursor:pointer}.power:disabled{opacity:.35;cursor:not-allowed}.power.off{background:#351a20;border-color:#71323b;color:#ff9ba2}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.heading h2{font-size:12px;margin:0;letter-spacing:.8px;color:#d9dee5}.pages{display:flex;gap:5px;flex-wrap:wrap}.page{height:30px;min-width:34px;padding:0 9px;background:#101318;border:1px solid #373e48;border-radius:6px;color:#aeb6c1;font-size:11px;font-weight:800;cursor:pointer}.page.active{background:#263b50;border-color:#4b86b7;color:#fff}.page.add{font-size:18px;line-height:1;color:#c8d0da}
+/* PAD VISUAL: réplica de los botones de Virtual Sound Pad Admin */
+.grid{display:grid;grid-template-columns:repeat(4,7rem);grid-auto-rows:7rem;gap:.5rem;justify-content:center;margin-inline:auto}
+.pad-wrap{position:relative;width:7rem;height:7rem;min-width:7rem}
+.pad{width:7rem;height:7rem;min-height:7rem;padding:.5rem;text-align:center;display:flex;flex-direction:column;align-items:stretch;justify-content:space-between;border:1px solid rgba(100,116,139,.35);border-radius:.5rem;color:var(--txt);cursor:pointer;transition:transform .1s,border-color .12s,box-shadow .12s,background-color .12s;position:relative;overflow:hidden}
+.pad.p-emerald{border-color:rgba(110,231,183,.35);background:rgba(52,211,153,.12)}
+.pad.p-amber{border-color:rgba(252,211,77,.45);background:rgba(252,211,77,.13)}
+.pad.p-slate-light{border-color:rgba(203,213,225,.25);background:rgba(148,163,184,.12)}
+.pad.p-slate-dark{border-color:rgba(100,116,139,.35);background:rgba(51,65,85,.30)}
+.pad.p-fuchsia{border-color:rgba(240,171,252,.35);background:rgba(232,121,249,.12)}
+.pad:hover{filter:brightness(1.12)}
+.pad:active{transform:scale(.98)}
+.pad.hit{border-color:#a5f3fc;box-shadow:0 0 0 2px #a5f3fc,0 0 18px rgba(103,232,249,.32)}
+.pad.error{border-color:#b64b55;box-shadow:inset 0 0 0 1px #ff626e55}
+.padtop{display:flex;justify-content:flex-start;align-items:center;gap:8px;min-height:18px}
+.num{font-size:.7rem;font-weight:600;letter-spacing:.08em;color:rgba(255,255,255,.65);text-transform:uppercase}
+.pad-icon{flex:1;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.75)}
+.pad-icon svg{width:24px;height:24px}
+.pad.hit .pad-icon{color:#cffafe}
+.name{display:-webkit-box;width:100%;font-size:1rem;font-weight:400;line-height:1.05;color:rgba(255,255,255,.8);overflow:hidden;text-overflow:ellipsis;white-space:normal;text-align:left;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.pad.hit .name{font-weight:800}
+.pad.empty .name{font-size:.75rem;font-weight:500;text-align:center}
+.pad.error .name{color:#ffb0b6}
+.dots{position:absolute;right:4px;top:4px;z-index:3;width:24px;height:24px;padding:4px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.6);display:grid;place-items:center;cursor:pointer}
+.dots:hover{background:rgba(0,0,0,.35);color:#fff}
+.dots svg{width:16px;height:16px}
+.foot{display:flex;justify-content:space-between;margin-top:12px;color:#929aa5;font-size:10px}
+.notice{display:none;margin-top:12px;padding:9px 11px;border:1px solid #754047;border-radius:7px;background:#29191d;color:#ffb0b6;font-size:11px;line-height:1.45}.notice.show{display:block}
+.menu-backdrop{position:fixed;inset:0;z-index:20;display:none}.menu-backdrop.show{display:block}.menu{position:fixed;z-index:21;width:min(300px,calc(100vw - 24px));max-height:min(72vh,520px);overflow:auto;padding:10px;background:#191e25;border:1px solid #414b58;border-radius:9px;box-shadow:0 18px 55px #000b;display:none}.menu.show{display:block}.menu-head{display:flex;justify-content:space-between;align-items:center;padding:3px 4px 10px;border-bottom:1px solid #343b45;margin-bottom:7px}.menu-head strong{font-size:12px}.close{border:0;background:transparent;color:#aab4c0;font-size:20px;cursor:pointer}.action{width:100%;display:flex;align-items:center;gap:9px;text-align:left;padding:10px 9px;border:0;border-radius:7px;background:transparent;color:#e4e9ef;font-size:12px;cursor:pointer}.action:hover{background:#ffffff0d}.action .ico{width:17px;text-align:center;color:#9fcdf2}.action.danger .ico{color:#ff8993}.action.add-local-audio{background:linear-gradient(135deg,#f6d34a,#e9ad24);color:#201b0b;font-weight:800;border:1px solid #ffe27a;box-shadow:0 2px 10px #e9ad2438}.action.add-local-audio .ico{color:#201b0b;font-size:17px;font-weight:900}.action.add-local-audio:hover{background:linear-gradient(135deg,#ffe36b,#f2bf36);box-shadow:0 3px 14px #e9ad2455;transform:translateY(-1px)}.action.add-local-audio:focus-visible{outline:2px solid #fff1a8;outline-offset:2px}.subpanel{padding:9px 8px 10px;border-top:1px solid #343b45;margin-top:5px}.subpanel label{display:flex;justify-content:space-between;color:#c0c8d2;font-size:11px;margin-bottom:9px}.subpanel input[type=range]{width:100%;accent-color:#42a5ff}.search{width:100%;height:35px;margin:5px 0 8px;padding:0 10px;background:#101318;border:1px solid #3a424d;border-radius:7px;color:white;outline:none}.sound-list{max-height:220px;overflow:auto}.sound-item{width:100%;display:flex;flex-direction:column;gap:3px;text-align:left;padding:8px;border:0;border-radius:6px;background:transparent;color:#e8edf3;cursor:pointer}.sound-item:hover{background:#ffffff0d}.sound-item small{color:#8995a3;font-size:10px}.sound-row{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:4px;align-items:center}.sound-row.personal{grid-template-columns:minmax(0,1fr) 34px 34px}.remove-audio{border-color:#684047;background:#2b1b20;color:#ff9ba2;font-size:19px;line-height:1}.remove-audio:hover{background:#49232a}.preview{height:32px;width:34px;border:1px solid #3b5268;border-radius:6px;background:#1b2a38;color:#a9d5fa;cursor:pointer}.preview:hover{background:#29445d}.section-label{padding:8px 7px 4px;color:#929daa;font-size:9px;font-weight:900;letter-spacing:1.2px}.empty{padding:12px;color:#929daa;font-size:11px}
+@media(max-width:650px){body{padding:12px}.controls{grid-template-columns:1fr 1fr}.device{grid-column:1/-1}.num{font-size:17px}.name{font-size:14px}.dots{width:24px;height:24px}}
+@media(max-width:380px){.grid{gap:.375rem}.pad,.pad-wrap{width:7rem;height:7rem;min-height:7rem;min-width:7rem}.num{font-size:15px}}
+</style>
+</head>
+<body>
+<main class="app">
+<header class="top"><div><h1>Show Pad</h1><div class="sub">ROCKOMIX</div></div><div class="top-actions"><div class="tag">SHOW PAD</div><button class="config-file" id="configFileButton" type="button">VINCULAR JSON</button><button class="load-fx" id="loadFxButton" type="button">↻ CARGAR FX´S</button></div></header>
+<section class="controls">
+ <div class="device"><label class="label" for="midiDevice">DISPOSITIVO MIDI</label><select id="midiDevice"><option value="">Buscando dispositivos MIDI…</option></select></div>
+ <div><span class="label">ESTADO MIDI</span><div class="status" id="status"><i class="dot"></i><span id="statusText">SIN CONECTAR</span></div></div>
+ <div><span class="label">CONTROL</span><button class="power" id="power" disabled>⏻ INICIAR</button></div>
+</section>
+<section class="panel">
+ <div class="heading"><h2>BANCO DE PADS</h2><nav class="pages" id="pages"><button class="page active" data-page="1">1</button><button class="page" data-page="2">2</button><button class="page add" data-add aria-label="Crear página">+</button></nav></div>
+ <div class="grid" id="padGrid"></div><div class="foot"><span id="pageLabel">PÁGINA 1</span><span>16 POSICIONES · 4 × 4</span></div>
+</section>
+<div class="notice" id="notice" role="status" aria-live="polite"></div>
+</main>
+<div class="menu-backdrop" id="backdrop"></div>
+<aside class="menu" id="padMenu" aria-label="Opciones del pad">
+ <div class="menu-head"><strong id="menuTitle">PAD 01 · OPCIONES</strong><button class="close" id="closeMenu" aria-label="Cerrar">×</button></div>
+ <button class="action" id="chooseSound"><span class="ico">♫</span>Asignar sonido</button>
+ <button class="action" id="toggleVolume"><span class="ico">◖</span>Volumen <span id="volumeText" style="margin-left:auto;color:#aab9c8">100%</span></button>
+ <div class="subpanel" id="volumePanel" hidden><label><span>Volumen del PAD</span><strong id="volumeValue">100%</strong></label><input id="volumeRange" type="range" min="0" max="100" value="100"></div>
+ <div class="subpanel" id="soundPanel" hidden><input class="search" id="soundSearch" type="search" placeholder="Buscar sonido..."><button class="action add-local-audio" id="addLocalAudio" type="button"><span class="ico">＋</span>Agregar audios de este dispositivo</button><input id="localAudioInput" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" multiple hidden><div class="sound-list" id="soundList"></div></div>
+ <button class="action danger" id="clearPad"><span class="ico">⌫</span>Liberar asignación</button>
+</aside>
+<!-- Howler.js: motor de audio utilizado también en myRockomix.party. -->
+<script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
+<script>
+'use strict';
+// ── CATÁLOGO LOCAL: todos los MP3 viven dentro de assets/audio. ──
+const soundFiles=[
+'/sounds/buzzer.mp3','/sounds/fx_califica/10_aplusos.mp3','/sounds/fx_califica/6_dun_dun_dun.mp3','/sounds/fx_califica/6_grillos.mp3','/sounds/fx_califica/7_aww.mp3','/sounds/fx_califica/7_sad_music.mp3','/sounds/fx_califica/7_titanic_flauta.mp3','/sounds/fx_califica/8_chiquillos.mp3','/sounds/fx_califica/8_risa_kid.mp3','/sounds/fx_califica/9_ultrainstinto.mp3','/sounds/fx_califica/9_wow.mp3','/sounds/fx_califica/ding_ding_ding_mezcla.mp3','/sounds/fxs/fanfarrias.mp3','/sounds/fxs/intro_sonido_karaomix.mp3','/sounds/fxs/kikekaraoke-envivo.mp3','/sounds/fxs/la_fiesta_tiene_luz.mp3','/sounds/fxs/mambos_socios_del_ritmo.mp3','/sounds/fxs/parrapapa.mp3','/sounds/fxs/promo_reggaeton.mp3'];
+const padOrder=[13,14,15,16,9,10,11,12,5,6,7,8,1,2,3,4];
+const DEFAULT_CONFIG={version:1,assignments:[
+{page:1,padId:1,path:'/sounds/buzzer.mp3',volume:100},{page:1,padId:2,path:'/sounds/fxs/fanfarrias.mp3',volume:100},{page:1,padId:3,path:'/sounds/fxs/parrapapa.mp3',volume:100},{page:1,padId:4,path:'/sounds/fx_califica/10_aplusos.mp3',volume:100},{page:1,padId:5,path:'/sounds/fx_califica/6_dun_dun_dun.mp3',volume:100},{page:1,padId:6,path:'/sounds/fx_califica/6_grillos.mp3',volume:100},{page:1,padId:7,path:'/sounds/fx_califica/7_aww.mp3',volume:100},{page:1,padId:8,path:'/sounds/fx_califica/7_sad_music.mp3',volume:100},{page:1,padId:9,path:'/sounds/fx_califica/7_titanic_flauta.mp3',volume:100},{page:1,padId:10,path:'/sounds/fx_califica/8_chiquillos.mp3',volume:100},{page:1,padId:11,path:'/sounds/fx_califica/8_risa_kid.mp3',volume:100},{page:1,padId:12,path:'/sounds/fx_califica/9_ultrainstinto.mp3',volume:100},{page:1,padId:13,path:'/sounds/fx_califica/9_wow.mp3',volume:100},{page:1,padId:14,path:'/sounds/fx_califica/ding_ding_ding_mezcla.mp3',volume:100},{page:1,padId:15,path:'/sounds/fxs/intro_sonido_karaomix.mp3',volume:100},{page:1,padId:16,path:'/sounds/fxs/la_fiesta_tiene_luz.mp3',volume:100}]};
+const assignments={};let currentPage=1,activePad=null,midiAccess=null,selectedMidi=null,midiStarted=false;
+const audioCache=new Map(),activeVoices=new Map(),failedPads=new Set(),failedAudioPaths=new Set(),pendingPadStarts=new Map();let previewVoice=null;
+// ── AUDIOS PERSONALES: blobs persistentes por navegador/dispositivo mediante IndexedDB. ──
+const PERSONAL_AUDIO_DB='myrockomix-show-pad-library',PERSONAL_AUDIO_STORE='audios';
+const localAudioRecords=new Map(),localAudioUrls=new Map();
+function openPersonalAudioDb(){return new Promise((resolve,reject)=>{const request=indexedDB.open(PERSONAL_AUDIO_DB,1);request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(PERSONAL_AUDIO_STORE)){const store=request.result.createObjectStore(PERSONAL_AUDIO_STORE,{keyPath:'id'});store.createIndex('name','name',{unique:false})}};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
+async function loadPersonalAudios(){try{const db=await openPersonalAudioDb();const records=await new Promise((resolve,reject)=>{const tx=db.transaction(PERSONAL_AUDIO_STORE,'readonly');const request=tx.objectStore(PERSONAL_AUDIO_STORE).getAll();request.onsuccess=()=>resolve(request.result||[]);request.onerror=()=>reject(request.error)});db.close();records.forEach(record=>{localAudioRecords.set(record.id,record);localAudioUrls.set(record.id,URL.createObjectURL(record.blob))})}catch(error){console.error('SHOW PAD: no se pudo leer la biblioteca personal',error)}}
+async function storePersonalAudio(file){const id=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;const record={id,name:file.name,type:file.type||'audio/mpeg',size:file.size,addedAt:Date.now(),blob:file};const db=await openPersonalAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PERSONAL_AUDIO_STORE,'readwrite');tx.objectStore(PERSONAL_AUDIO_STORE).put(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();localAudioRecords.set(id,record);localAudioUrls.set(id,URL.createObjectURL(file));return `local-audio:${id}`}
+// Elimina un audio personal del dispositivo y libera sus referencias para evitar pads en rojo.
+async function removePersonalAudio(id){const path=`local-audio:${id}`;try{const db=await openPersonalAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PERSONAL_AUDIO_STORE,'readwrite');tx.objectStore(PERSONAL_AUDIO_STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();const howl=audioCache.get(path);if(howl){howl.stop();howl.unload();audioCache.delete(path)}if(previewVoice?.path===path){previewVoice.howl.stop(previewVoice.soundId);previewVoice=null}const url=localAudioUrls.get(id);if(url)URL.revokeObjectURL(url);localAudioUrls.delete(id);localAudioRecords.delete(id);failedAudioPaths.delete(path);for(const [key,assignment] of Object.entries(assignments)){if(assignment.path===path){delete assignments[key];failedPads.delete(key)}}saveAssignments();renderPads();renderSoundList();showError('Audio eliminado de Mis audios y de las asignaciones que lo utilizaban.')}catch(error){console.error('SHOW PAD: no se pudo eliminar el audio personal',error);showError('No se pudo eliminar el audio. Revisa el almacenamiento del navegador.')}}
+function localAudioId(path){return String(path||'').startsWith('local-audio:')?String(path).slice('local-audio:'.length):null}
+async function requestPersistentStorage(){try{if(navigator.storage?.persist)await navigator.storage.persist()}catch{}}
+const $=id=>document.getElementById(id);
+const grid=$('padGrid'),pages=$('pages'),menu=$('padMenu'),backdrop=$('backdrop'),soundPanel=$('soundPanel'),volumePanel=$('volumePanel'),soundList=$('soundList'),soundSearch=$('soundSearch'),notice=$('notice');
+function filename(path){return decodeURIComponent(String(path||'').split('/').pop()).replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ')}
+// Nombre visible: para audios personales se usa el nombre real del archivo, no el ID interno.
+function audioDisplayName(path){const id=localAudioId(path);if(id){const record=localAudioRecords.get(id);return record?record.name.replace(/\.[^.]+$/,''):'Audio personal no disponible'}return filename(path)}
+// AUDIO: PC usa la biblioteca local del proyecto; móviles usan GitHub Raw.
+const AUDIO_BASE='https://raw.githubusercontent.com/Rockomix/rockomix-partykit/main/public';
+const isLocalFileLaunch=()=>window.location.protocol==='file:';
+function audioUrl(path){const personalId=localAudioId(path);if(personalId)return localAudioUrls.get(personalId)||'';const normalized=String(path||'').trim().replace(/^\/+/, '');if(!normalized)return '';if(!isLocalFileLaunch())return `${AUDIO_BASE}/${normalized}`;return new URL(`../../assets/audio/${normalized.replace(/^sounds\//,'')}`,document.baseURI).href}
+function showError(message){notice.textContent=message;notice.classList.add('show');setTimeout(()=>notice.classList.remove('show'),7000)}
+function hideError(){notice.classList.remove('show');notice.textContent=''}
+function applyConfig(config){Object.keys(assignments).forEach(k=>delete assignments[k]);(config?.assignments||[]).forEach(item=>{if(!Number.isInteger(Number(item.padId))||!item.path)return;const page=Math.max(1,Number(item.page)||1),padId=Number(item.padId);assignments[`${page}:${padId}`]={path:item.path,volume:Math.max(0,Math.min(100,Number(item.volume??100)))};});}
+function serializeConfig(){return{version:2,assignments:Object.entries(assignments).map(([key,value])=>{const[page,padId]=key.split(':').map(Number);return{page,padId,path:value.path,volume:value.volume}})}}
+// El JSON maestro solo publica sonidos del inventario; nunca referencias a archivos personales.
+function serializeMasterConfig(){const config=serializeConfig();config.assignments=config.assignments.filter(item=>!String(item.path||'').startsWith('local-audio:'));return config}
+// ── ARCHIVO MAESTRO: vínculo persistente al JSON mediante File System Access API. ──
+const IS_LOCAL_MASTER=window.location.protocol==='file:';
+const CONFIG_FILE_DB='myrockomix-show-pad-files',CONFIG_FILE_STORE='handles',CONFIG_FILE_KEY='master-config',CONFIG_DIR_KEY='master-config-directory';
+if(IS_LOCAL_MASTER){$('configFileButton').style.display='inline-flex';}else{$('loadFxButton').style.display='inline-flex';}
+let configFileHandle=null,configWriteQueue=Promise.resolve();
+function openConfigFileDb(){return new Promise((resolve,reject)=>{const request=indexedDB.open(CONFIG_FILE_DB,1);request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(CONFIG_FILE_STORE))request.result.createObjectStore(CONFIG_FILE_STORE)};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
+async function storeConfigFileHandle(handle){const db=await openConfigFileDb();await new Promise((resolve,reject)=>{const tx=db.transaction(CONFIG_FILE_STORE,'readwrite');tx.objectStore(CONFIG_FILE_STORE).put(handle,CONFIG_FILE_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
+async function loadConfigFileHandle(){try{const db=await openConfigFileDb();const handle=await new Promise((resolve,reject)=>{const tx=db.transaction(CONFIG_FILE_STORE,'readonly');const request=tx.objectStore(CONFIG_FILE_STORE).get(CONFIG_FILE_KEY);request.onsuccess=()=>resolve(request.result||null);request.onerror=()=>reject(request.error)});db.close();return handle}catch{return null}}
+async function writeConfigFile(showNotice=false){if(!configFileHandle)return;try{let permission=await configFileHandle.queryPermission({mode:'readwrite'});if(permission!=='granted'){if(showNotice)permission=await configFileHandle.requestPermission({mode:'readwrite'});if(permission!=='granted')return}const contents=JSON.stringify(serializeMasterConfig(),null,2);const writable=await configFileHandle.createWritable();await writable.write(contents);await writable.close();if(showNotice)showError('Configuración guardada en show-pad-config.json.')}catch(error){if(showNotice)showError('No se pudo escribir el JSON. Usa VINCULAR JSON para seleccionar o crear el archivo nuevamente.');console.error('SHOW PAD config JSON:',error)}}
+function saveAssignments(){const config=serializeConfig();try{localStorage.setItem('myrockomix-show-pad-config',JSON.stringify(config))}catch(error){showError('No se pudo guardar la configuración en este perfil de SHOW.')}if(IS_LOCAL_MASTER&&configFileHandle){configWriteQueue=configWriteQueue.then(()=>writeConfigFile(false)).catch(error=>console.error('SHOW PAD config write:',error))}}
+async function linkConfigFile(){if(!IS_LOCAL_MASTER)return;try{if('showDirectoryPicker'in window){/* Abre el selector de CARPETA, no el selector de archivos. Dentro se crea o reutiliza show-pad-config.json automáticamente. */const directory=await window.showDirectoryPicker({id:'myrockomix-showpad-config',mode:'readwrite'});let permission=await directory.queryPermission({mode:'readwrite'});if(permission!=='granted')permission=await directory.requestPermission({mode:'readwrite'});if(permission!=='granted'){showError('No se concedió permiso para guardar en esa carpeta.');return}const fileHandle=await directory.getFileHandle('show-pad-config.json',{create:true});configFileHandle=fileHandle;await storeConfigFileHandle(fileHandle);const db=await openConfigFileDb();await new Promise((resolve,reject)=>{const tx=db.transaction(CONFIG_FILE_STORE,'readwrite');tx.objectStore(CONFIG_FILE_STORE).put(directory,CONFIG_DIR_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();await writeConfigFile(true);$('configFileButton').textContent='CARPETA JSON VINCULADA';return}if('showSaveFilePicker'in window){const handle=await window.showSaveFilePicker({suggestedName:'show-pad-config.json',types:[{description:'Configuración SHOW PAD (JSON)',accept:{'application/json':['.json']}}]});configFileHandle=handle;await storeConfigFileHandle(handle);await writeConfigFile(true);$('configFileButton').textContent='JSON VINCULADO';return}showError('Este navegador no permite seleccionar carpetas ni guardar archivos directamente. Usa Chrome o Edge actualizado.')}catch(error){if(error.name!=='AbortError')showError('No se pudo vincular la carpeta del JSON: '+(error.message||error));console.error('SHOW PAD carpeta JSON:',error)}}
+$('configFileButton').addEventListener('click',linkConfigFile);
+async function restoreConfigFileLink(){if(!IS_LOCAL_MASTER)return;configFileHandle=await loadConfigFileHandle();if(!configFileHandle)return;$('configFileButton').textContent='JSON VINCULADO';const permission=await configFileHandle.queryPermission({mode:'readwrite'});if(permission==='granted')await writeConfigFile(false)}
+function getAssignment(id){return assignments[`${currentPage}:${id}`]??{path:null,volume:100}}
+function assignedPathsForPage(page){return [...new Set(Object.entries(assignments).filter(([key,a])=>Number(key.split(':')[0])===page&&a.path).map(([,a])=>a.path))]}
+function pageHasAssignments(page){return assignedPathsForPage(page).length>0}
+function ensurePageButtons(){const existing=[...pages.querySelectorAll('[data-page]')].map(b=>Number(b.dataset.page));const desired=new Set([1,2]);Object.keys(assignments).forEach(key=>{const p=Number(key.split(':')[0]);if(p>2)desired.add(p)});existing.forEach(p=>{if(p>2&&!desired.has(p))pages.querySelector(`[data-page="${p}"]`)?.remove()});[...desired].sort((a,b)=>a-b).forEach(p=>{if(!pages.querySelector(`[data-page="${p}"]`)){const b=document.createElement('button');b.className='page';b.dataset.page=p;b.textContent=p;pages.insertBefore(b,pages.querySelector('[data-add]'))}})}
+// ── MOTOR: un Howl por archivo, compartido entre todos los PAD que lo usen. ──
+function personalAudioFormat(path){const id=localAudioId(path);if(!id)return undefined;const record=localAudioRecords.get(id);const match=record?.name?.match(/\.([^.]+)$/);return match?[match[1].toLowerCase()]:undefined}
+function getHowl(path){if(!path||failedAudioPaths.has(path))return null;if(audioCache.has(path))return audioCache.get(path);if(typeof Howl==='undefined')return null;const src=audioUrl(path);if(!src){console.warn('SHOW PAD: no se encontró el archivo de audio',path);return null}/* MOTOR ORIGINAL CONSERVADO: Howler Web Audio (html5:false) para inventario y audios personales. format informa a Howler del códec del Blob, cuya URL no conserva la extensión del archivo. */const format=personalAudioFormat(path);const howl=new Howl({src:[src],...(format?{format}:{}),preload:false,html5:false,volume:1,pool:24,onloaderror:(_id,error)=>{console.error('SHOW PAD: error cargando audio',path,error);handleAudioLoadError(path,error)},onload:()=>{failedAudioPaths.delete(path);failedPads.forEach(key=>{const a=assignments[key];if(a?.path===path)failedPads.delete(key)});renderPads()}});audioCache.set(path,howl);return howl}
+function handleAudioLoadError(path,error){if(failedAudioPaths.has(path))return;failedAudioPaths.add(path);const affected=Object.entries(assignments).filter(([,a])=>a.path===path).map(([key])=>key);affected.forEach(key=>{failedPads.add(key);pendingPadStarts.delete(key)});renderPads();/* Audio ausente o sin conexión: omitir silenciosamente, sin reintentos ni avisos repetitivos. */}
+function preloadPath(path){if(!path||failedAudioPaths.has(path))return;const howl=getHowl(path);if(!howl)return;if(howl.state()==='unloaded')howl.load()}
+function preloadPage(page){assignedPathsForPage(page).forEach(preloadPath)}
+function preloadInitialPages(){preloadPage(1);preloadPage(2)}
+function playPad(id){const key=`${currentPage}:${id}`,assignment=getAssignment(id);if(!assignment.path||failedAudioPaths.has(assignment.path))return;const existing=activeVoices.get(key);if(existing){existing.howl.stop(existing.soundId);activeVoices.delete(key);renderPads();return}if(pendingPadStarts.has(key)){pendingPadStarts.delete(key);return}const howl=getHowl(assignment.path);if(!howl){showError('Howler.js no está disponible. Comprueba la conexión inicial para cargar el motor de audio.');return}const pendingToken={};pendingPadStarts.set(key,pendingToken);const start=()=>{if(pendingPadStarts.get(key)!==pendingToken)return;pendingPadStarts.delete(key);const latest=getAssignment(id);if(!latest.path)return;const soundId=howl.play();howl.volume(latest.volume/100,soundId);activeVoices.set(key,{howl,soundId,path:latest.path});renderPads();howl.once('end',()=>{const voice=activeVoices.get(key);if(voice?.soundId===soundId)activeVoices.delete(key);renderPads()},soundId);howl.once('stop',()=>{const voice=activeVoices.get(key);if(voice?.soundId===soundId)activeVoices.delete(key);renderPads()},soundId)};if(howl.state()==='loaded')start();else{preloadPath(assignment.path);howl.once('load',start);howl.once('loaderror',()=>{pendingPadStarts.delete(key);failedAudioPaths.add(assignment.path);failedPads.add(key);renderPads()})}}
+function playPreview(path){if(previewVoice){previewVoice.howl.stop(previewVoice.soundId);previewVoice=null}if(failedAudioPaths.has(path))return;const howl=getHowl(path);if(!howl)return;const start=()=>{const soundId=howl.play();howl.volume(1,soundId);previewVoice={howl,soundId}};if(howl.state()==='loaded')start();else{preloadPath(path);howl.once('load',start)}}
+function renderPads(){
+ grid.innerHTML='';
+ padOrder.forEach(id=>{
+  const key=`${currentPage}:${id}`,a=getAssignment(id),wrap=document.createElement('div');
+  wrap.className='pad-wrap';
+  const b=document.createElement('button');
+  const colorClass=id<=3?'p-emerald':id===4?'p-amber':id<=8?'p-slate-light':id<=12?'p-slate-dark':'p-fuchsia';
+  b.className=`pad ${colorClass}${a.path?' assigned':' empty'}`;
+  if(activeVoices.has(key))b.classList.add('hit');
+  if(failedPads.has(key))b.classList.add('error');
+  b.type='button';
+  const top=document.createElement('span');top.className='padtop';
+  const num=document.createElement('span');num.className='num';num.textContent=`PAD ${id}`;
+  top.append(num);
+  const icon=document.createElement('span');icon.className='pad-icon';
+  const isPlaying=activeVoices.has(key);
+  icon.innerHTML=isPlaying
+   ? '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>'
+   : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10v4M6 6v12M10 3v18M14 7v10M18 5v14M22 10v4"/></svg>';
+  const name=document.createElement('span');name.className='name';if(isPlaying)name.classList.add('playing');name.textContent=a.path?audioDisplayName(a.path):'Vacío';name.title=a.path?audioDisplayName(a.path):'Sin audio asignado';
+  b.append(top,icon,name);
+  b.addEventListener('click',()=>playPad(id));
+  const dots=document.createElement('button');dots.className='dots';dots.type='button';dots.title=`Opciones PAD ${id}`;dots.setAttribute('aria-label',`Opciones PAD ${id}`);
+  dots.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+  dots.addEventListener('click',e=>{e.stopPropagation();openMenu(id,dots)});
+  wrap.append(b,dots);grid.append(wrap);
+ });
+}
+function selectPage(n){currentPage=n;pages.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',Number(x.dataset.page)===n));$('pageLabel').textContent=`PÁGINA ${n}`;closeMenu();renderPads();if(n>2)preloadPage(n)}
+pages.addEventListener('click',e=>{const target=e.target.closest('[data-page]');if(target){selectPage(Number(target.dataset.page));return}if(e.target.closest('[data-add]')){const nums=[...pages.querySelectorAll('[data-page]')].map(x=>Number(x.dataset.page));const n=Math.max(2,...nums)+1;const b=document.createElement('button');b.className='page';b.dataset.page=n;b.textContent=n;pages.insertBefore(b,pages.querySelector('[data-add]'));selectPage(n)}});
+function openMenu(id,anchor){activePad=id;$('menuTitle').textContent=`PAD ${String(id).padStart(2,'0')} · OPCIONES`;const r=anchor.getBoundingClientRect();menu.style.left=Math.min(Math.max(12,r.right-292),innerWidth-312)+'px';menu.style.top=Math.min(r.bottom+5,innerHeight-390)+'px';menu.classList.add('show');backdrop.classList.add('show');soundPanel.hidden=true;volumePanel.hidden=true;$('volumeRange').value=getAssignment(id).volume;updateVolumeLabel()}
+function closeMenu(){menu.classList.remove('show');backdrop.classList.remove('show');activePad=null}
+$('closeMenu').onclick=closeMenu;backdrop.onclick=closeMenu;
+function updateVolumeLabel(){const v=Number($('volumeRange').value);$('volumeText').textContent=v+'%';$('volumeValue').textContent=v+'%'}
+$('toggleVolume').onclick=()=>{volumePanel.hidden=!volumePanel.hidden;soundPanel.hidden=true};
+$('volumeRange').oninput=()=>{if(activePad===null)return;const key=`${currentPage}:${activePad}`,volume=Number($('volumeRange').value);assignments[key]={...getAssignment(activePad),volume};const voice=activeVoices.get(key);if(voice)voice.howl.volume(volume/100,voice.soundId);saveAssignments();updateVolumeLabel()};
+$('chooseSound').onclick=()=>{soundPanel.hidden=!soundPanel.hidden;volumePanel.hidden=true;if(!soundPanel.hidden){soundSearch.value='';renderSoundList()}};
+function renderSoundList(){
+ const q=soundSearch.value.trim().toLowerCase();soundList.innerHTML='';
+ const addSection=(label,items,isPersonal=false)=>{
+  const heading=document.createElement('div');heading.className='section-label';heading.textContent=label;soundList.append(heading);
+  const matches=items.filter(item=>{const path=isPersonal?`local-audio:${item.id}`:item;const name=isPersonal?item.name:filename(item);return name.toLowerCase().includes(q)||path.toLowerCase().includes(q)});
+  if(!matches.length){const empty=document.createElement('div');empty.className='empty';empty.textContent=isPersonal?'Todavía no has importado audios en este dispositivo.':'No hay coincidencias.';soundList.append(empty);return}
+  matches.forEach(item=>{const path=isPersonal?`local-audio:${item.id}`:item;const row=document.createElement('div');row.className='sound-row'+(isPersonal?' personal':'');const b=document.createElement('button');b.className='sound-item';b.type='button';const title=document.createElement('span');title.textContent=isPersonal?item.name:filename(item);const detail=document.createElement('small');detail.textContent=isPersonal?'Guardado en este dispositivo':item;b.append(title,detail);b.onclick=()=>{if(activePad===null)return;const key=`${currentPage}:${activePad}`;assignments[key]={...getAssignment(activePad),path};failedPads.delete(key);failedAudioPaths.delete(path);saveAssignments();renderPads();preloadPath(path);closeMenu()};const preview=document.createElement('button');preview.className='preview';preview.type='button';preview.title='Preescuchar';preview.textContent='▶';preview.onclick=e=>{e.stopPropagation();playPreview(path)};row.append(b,preview);if(isPersonal){const remove=document.createElement('button');remove.className='preview remove-audio';remove.type='button';remove.title='Eliminar de Mis audios';remove.setAttribute('aria-label',`Eliminar ${item.name}`);remove.textContent='×';remove.onclick=e=>{e.stopPropagation();if(confirm(`¿Eliminar “${item.name}” de este dispositivo? También se quitará de los pads donde esté asignado.`))removePersonalAudio(item.id)};row.append(remove)}soundList.append(row)})
+ };
+ addSection('INVENTARIO OFICIAL',soundFiles,false);
+ addSection('MIS AUDIOS · ESTE DISPOSITIVO',[...localAudioRecords.values()],true);
+}
+$('addLocalAudio').onclick=()=>$('localAudioInput').click();
+$('localAudioInput').addEventListener('change',async event=>{const files=[...(event.target.files||[])];if(!files.length)return;let added=0,firstPath=null;const targetPad=activePad;const targetPage=currentPage;try{for(const file of files){if(!file.type.startsWith('audio/')&&!/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name))continue;const path=await storePersonalAudio(file);if(!firstPath)firstPath=path;added++}await requestPersistentStorage();if(firstPath&&targetPad!==null){const key=`${targetPage}:${targetPad}`;assignments[key]={...assignments[key],path:firstPath,volume:assignments[key]?.volume??100};failedPads.delete(key);failedAudioPaths.delete(firstPath);saveAssignments();renderPads();preloadPath(firstPath);closeMenu();showError(`${added} audio(s) guardado(s). ${audioDisplayName(firstPath)} asignado a PAD ${targetPad}.`)}else{renderSoundList();showError(`${added} audio(s) guardado(s) en este dispositivo. Selecciona uno de la lista para asignarlo.`)}}catch(error){console.error(error);showError('No se pudieron guardar todos los audios. Revisa el espacio disponible del dispositivo.')}finally{event.target.value=''}});
+soundSearch.addEventListener('input',renderSoundList);
+$('clearPad').onclick=()=>{if(activePad===null)return;const key=`${currentPage}:${activePad}`;const voice=activeVoices.get(key);if(voice){voice.howl.stop(voice.soundId);activeVoices.delete(key)}delete assignments[key];failedPads.delete(key);saveAssignments();if(currentPage>2&&!pageHasAssignments(currentPage)){currentPage=1;$('pageLabel').textContent='PÁGINA 1'}ensurePageButtons();pages.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',Number(x.dataset.page)===currentPage));renderPads();closeMenu()};
+// ── MIDI REAL: actividad, selección automática y traducción MIDI → Id_pad. ──
+const device=$('midiDevice'),power=$('power'),status=$('status'),statusText=$('statusText');
+const MIDI_DEVICE_KEY='myrockomix-show-pad-midi-device';
+const MIDI_PROFILES=[
+ {id:'m-vave-smc-pad-pocket',label:'SMC-PAD Pocket',match:/smc[\s-]*pad[\s-]*pocket/i,firstNote:36,pads:16,banks:7,offset:16},
+ {id:'m-vave-smc-pad',label:'SMC-PAD',match:/^smc[\s-]*pad(\s+(midi|port))?(\s+\d+)?$/i,firstNote:36,pads:16,banks:1,offset:16},
+ {id:'m-vave-smc-mixer',label:'SMC-Mixer',match:/smc[\s-]*mixer/i,pads:0}
+];
+let rememberedMidi=null;
+const midiActivity=new Map();
+try{rememberedMidi=JSON.parse(localStorage.getItem(MIDI_DEVICE_KEY)||'null')}catch{rememberedMidi=null}
+function midiProfile(input){if(input?.id?.startsWith('ble:'))return MIDI_PROFILES[0];return MIDI_PROFILES.find(profile=>profile.match.test(input?.name||''))||null}
+function setMidiStatus(on,text){midiStarted=on;status.classList.toggle('on',on);statusText.textContent=text;power.textContent=on?'⏻ DESCONECTAR':'⏻ INICIAR';power.classList.toggle('off',on)}
+function rememberMidiDevice(input){if(!input)return;rememberedMidi={id:input.id,name:input.name||'',manufacturer:input.manufacturer||''};try{localStorage.setItem(MIDI_DEVICE_KEY,JSON.stringify(rememberedMidi))}catch{}}
+function findRememberedMidi(inputs){if(!rememberedMidi)return null;return inputs.find(input=>input.id===rememberedMidi.id)||inputs.find(input=>(input.name||'')===rememberedMidi.name&&(input.manufacturer||'')===rememberedMidi.manufacturer)||null}
+function activeMidiInputs(){return [...(midiAccess?.inputs.values()||[])].filter(input=>input.state!=='disconnected'&&midiActivity.has(input.id))}
+function renderMidiDevices(){const oldValue=device.value;const active=activeMidiInputs();device.innerHTML='';const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=active.length?'Selecciona un dispositivo MIDI':'Esperando actividad MIDI…';device.append(placeholder);active.forEach(input=>{const option=document.createElement('option');option.value=input.id;const profile=midiProfile(input);option.textContent=profile?`${input.name} · ${profile.label}`:(input.name||`Dispositivo MIDI ${input.id}`);device.append(option)});const preferred=active.find(input=>input.id===oldValue)||findRememberedMidi(active);if(preferred){device.value=preferred.id;power.disabled=false;if(!midiStarted)connectMidi(true)}else{device.value='';power.disabled=!navigator.bluetooth;if(!active.length&&!midiStarted)statusText.textContent=navigator.bluetooth?'LISTO PARA CONEXIÓN BLUETOOTH MIDI':'ESPERANDO ACTIVIDAD MIDI'}}
+function midiNoteToPad(input,note){const profile=midiProfile(input);if(!profile||profile.pads!==16)return null;const offset=note-profile.firstNote;if(offset<0||offset>=profile.banks*profile.offset)return null;return (offset%profile.offset)+1}
+function handleMidiMessage(input,event){const data=event.data;if(!data||data.length<2)return;const command=data[0]&0xf0;const note=data[1];const velocity=data[2]||0;const hasActivity=[0x80,0x90,0xa0,0xb0,0xc0,0xd0,0xe0].includes(command);if(!hasActivity)return;const firstActivity=!midiActivity.has(input.id);midiActivity.set(input.id,Date.now());if(firstActivity)renderMidiDevices();if(!midiStarted||selectedMidi?.id!==input.id)return;if(command===0x90&&velocity>0){const padId=midiNoteToPad(input,note);if(padId){statusText.textContent=`${midiProfile(input).label} · PAD ${String(padId).padStart(2,'0')}`;playPad(padId)}else{statusText.textContent=`NOTA MIDI ${note} · SIN MAPEO`}}}
+function monitorMidiInput(input){input.onmidimessage=event=>handleMidiMessage(input,event)}
+// ── BLE MIDI DIRECTO: Chrome se conecta al controlador sin app intermediaria. ──
+const BLE_MIDI_SERVICE='03b80e5a-ede8-4b33-a751-6ce34ec4c700';
+const BLE_MIDI_CHARACTERISTIC='7772e5db-3868-4112-a1a9-f2669d106bf3';
+let bleDevice=null,bleServer=null,bleCharacteristic=null;const bleDisconnectListeners=new WeakSet();
+function midiInputLike(name,id){return {id,name,manufacturer:'M-VAVE',state:'connected',type:'input'};}
+// Decodifica BLE-MIDI: cada mensaje puede venir precedido por su timestamp.
+function parseBleMidiPacket(input,buffer){
+ const bytes=new Uint8Array(buffer);if(bytes.length<3)return;
+ let i=0,runningStatus=null;
+ // El primer byte es el encabezado/timestamp alto del paquete BLE-MIDI.
+ if((bytes[i]&0x80)===0)return;i++;
+ while(i<bytes.length){
+  // Timestamp bajo (bit 7 a 1); puede aparecer antes de cada mensaje.
+  if(i>=bytes.length)break;
+  if((bytes[i]&0x80)!==0){i++;if(i>=bytes.length)break;}
+  let statusByte=bytes[i];
+  if(statusByte&0x80){statusByte=bytes[i++];if(statusByte<0xf0)runningStatus=statusByte;}
+  else if(runningStatus!==null){statusByte=runningStatus;}
+  else{break;}
+  const command=statusByte&0xf0;
+  if(command===0xf0){break;}
+  const length=(command===0xc0||command===0xd0)?1:2;
+  if(i+length>bytes.length)break;
+  const data=[statusByte];
+  for(let n=0;n<length;n++)data.push(bytes[i++]);
+  handleMidiMessage(input,{data:new Uint8Array(data)});
+ }
+}
+function bleOptionLabel(d){return `${d.name||'SMC-PAD Pocket'} · BLE MIDI`;}
+function renderBleDevices(devices=[]){
+ const current=device.value;const midi=activeMidiInputs();device.innerHTML='';
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Selecciona tu dispositivo MIDI';device.append(placeholder);
+ midi.forEach(input=>{const o=document.createElement('option');o.value=input.id;o.textContent=`${input.name} · MIDI`;device.append(o)});
+ devices.forEach(d=>{const o=document.createElement('option');o.value=`ble:${d.id}`;o.textContent=bleOptionLabel(d);device.append(o)});
+ const wanted=current||rememberedMidi?.id;
+ if(wanted&&[...device.options].some(o=>o.value===wanted))device.value=wanted;
+ else if(rememberedMidi?.name){const match=[...device.options].find(o=>o.textContent.includes(rememberedMidi.name));if(match)device.value=match.value;}
+ power.disabled=false;
+}
+async function getAuthorizedBleDevices(){
+ if(!navigator.bluetooth?.getDevices)return [];
+ try{return await navigator.bluetooth.getDevices()}catch{return []}
+}
+async function attachBleDevice(d,automatic=false){
+ if(!d?.gatt)throw new Error('El navegador no permite conectar con este dispositivo.');
+ power.disabled=true;statusText.textContent=automatic?'RECONECTANDO SMC-PAD…':'CONECTANDO SMC-PAD…';
+ try{
+  bleDevice=d;
+  if(!bleDisconnectListeners.has(d)){d.addEventListener('gattserverdisconnected',()=>{bleServer=null;bleCharacteristic=null;selectedMidi=null;setMidiStatus(false,'BLUETOOTH DESCONECTADO');power.disabled=false;});bleDisconnectListeners.add(d)}
+  bleServer=d.gatt.connected?d.gatt:await d.gatt.connect();
+  const service=await bleServer.getPrimaryService(BLE_MIDI_SERVICE);
+  bleCharacteristic=await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
+  await bleCharacteristic.startNotifications();
+  selectedMidi=midiInputLike(d.name||'SMC-PAD Pocket',`ble:${d.id}`);
+  rememberedMidi={id:selectedMidi.id,name:selectedMidi.name,manufacturer:'M-VAVE'};
+  try{localStorage.setItem(MIDI_DEVICE_KEY,JSON.stringify(rememberedMidi))}catch{}
+  midiActivity.set(selectedMidi.id,Date.now());
+  bleCharacteristic.addEventListener('characteristicvaluechanged',event=>{const view=event.target.value;parseBleMidiPacket(selectedMidi,view.buffer.slice(view.byteOffset,view.byteOffset+view.byteLength))});
+  renderBleDevices([d]);device.value=selectedMidi.id;
+  setMidiStatus(true,automatic?'RECONECTADO':'BLE MIDI CONECTADO');statusText.textContent='SMC-PAD POCKET · LISTO';
+ }catch(error){setMidiStatus(false,'SIN CONECTAR');throw error}
+ finally{power.disabled=false}
+}
+async function requestBleDevice(){
+ // El selector solo ofrece el Pocket/SMC o dispositivos que anuncien BLE-MIDI.
+ return navigator.bluetooth.requestDevice({filters:[{namePrefix:'SMC-PAD'},{namePrefix:'SMC PAD'},{services:[BLE_MIDI_SERVICE]}],optionalServices:[BLE_MIDI_SERVICE]});
+}
+async function connectBleMidi(){
+ if(!navigator.bluetooth){showError('Este navegador no ofrece Web Bluetooth. Usa Chrome o Edge desde HTTPS.');return}
+ try{
+  power.disabled=true;
+  // Primero recupera el dispositivo previamente autorizado, sin escaneo general.
+  const authorized=await getAuthorizedBleDevices();
+  let target=authorized.find(d=>rememberedMidi?.id===`ble:${d.id}`)||authorized.find(d=>rememberedMidi?.name&&d.name===rememberedMidi.name)||null;
+  if(!target)target=await requestBleDevice();
+  await attachBleDevice(target,false);
+ }catch(error){setMidiStatus(false,'SIN CONECTAR');if(error?.name==='NotFoundError')statusText.textContent='NO SE ENCONTRÓ UN SMC-PAD';else if(error?.name==='NotAllowedError')statusText.textContent='SELECCIÓN CANCELADA';else showError(`No se pudo conectar al SMC-PAD. ${error.message||error}`);power.disabled=false}
+}
+async function reconnectAuthorizedBle(d){
+ // Tras F5 Chrome puede tardar en liberar la conexión GATT de la página anterior.
+ // Reintentos limitados: evita ciclos infinitos y no requiere apagar/encender el Pocket.
+ const waits=[0,800,1600,2800];let lastError=null;
+ for(let attempt=0;attempt<waits.length;attempt++){
+  if(waits[attempt])await new Promise(resolve=>setTimeout(resolve,waits[attempt]));
+  try{await attachBleDevice(d,true);return true}
+  catch(error){lastError=error;}
+ }
+ throw lastError||new Error('No se pudo restablecer la conexión GATT.');
+}
+async function restoreAuthorizedBle(){
+ if(!navigator.bluetooth?.getDevices)return;
+ const devices=await getAuthorizedBleDevices();
+ const smc=devices.filter(d=>/^smc[\s-]*pad/i.test(d.name||'')||/^smc[\s-]*mixer/i.test(d.name||''));
+ renderBleDevices(smc);
+ const last=smc.find(d=>rememberedMidi?.id===`ble:${d.id}`)||smc.find(d=>rememberedMidi?.name&&d.name===rememberedMidi.name);
+ if(last&&!midiStarted){
+  try{await reconnectAuthorizedBle(last)}
+  catch(error){setMidiStatus(false,'SMC RECORDADO · NO CONECTADO');statusText.textContent=`NO SE PUDO RECONECTAR: ${error?.message||error}`;power.disabled=false;}
+ }
+}
+async function initializeMidi(){
+ if(navigator.requestMIDIAccess){try{midiAccess=await navigator.requestMIDIAccess({sysex:false});[...midiAccess.inputs.values()].forEach(monitorMidiInput);midiAccess.onstatechange=event=>{const input=event.port;if(input?.type==='input'){if(input.state==='disconnected'){midiActivity.delete(input.id);if(selectedMidi?.id===input.id){selectedMidi=null;setMidiStatus(false,'DISPOSITIVO DESCONECTADO')}}else monitorMidiInput(input)}renderMidiDevices()};}catch(error){/* BLE directo sigue disponible aunque Web MIDI no lo esté. */}}
+ if(navigator.bluetooth){power.disabled=false;statusText.textContent='CONSULTANDO DISPOSITIVOS AUTORIZADOS…';await restoreAuthorizedBle();if(!midiStarted)statusText.textContent='LISTO · SELECCIONA O INICIA';}
+ else if(midiAccess){renderMidiDevices();power.disabled=!activeMidiInputs().length;statusText.textContent='ESPERANDO ACTIVIDAD MIDI';}
+ else{device.innerHTML='<option value="">MIDI no disponible en este navegador</option>';power.disabled=true;statusText.textContent='NAVEGADOR NO COMPATIBLE'}
+}
+device.onchange=()=>{
+ if(midiStarted)disconnectMidi();const value=device.value;
+ if(value.startsWith('ble:')){const name=device.selectedOptions[0]?.textContent.split(' · ')[0]||'';rememberedMidi={id:value,name,manufacturer:'M-VAVE'};try{localStorage.setItem(MIDI_DEVICE_KEY,JSON.stringify(rememberedMidi))}catch{}power.disabled=false;return}
+ const input=midiAccess?.inputs.get(value);if(input){rememberMidiDevice(input);power.disabled=false}else power.disabled=!navigator.bluetooth;
+};
+function connectMidi(automatic=false){if(!midiAccess||!device.value)return;const input=midiAccess.inputs.get(device.value);if(!input||input.state==='disconnected'||!midiActivity.has(input.id))return;selectedMidi=input;rememberMidiDevice(input);monitorMidiInput(input);setMidiStatus(true,automatic?'CONECTADO AUTOMÁTICAMENTE':'CONECTADO');const profile=midiProfile(input);statusText.textContent=profile?`${profile.label} · LISTO`:'CONECTADO · PERFIL NO RECONOCIDO'}
+function disconnectMidi(){if(bleDevice?.gatt?.connected){bleDevice.gatt.disconnect();return}if(selectedMidi)monitorMidiInput(selectedMidi);selectedMidi=null;setMidiStatus(false,'SIN CONECTAR')}
+power.onclick=()=>{if(midiStarted){disconnectMidi();return}const value=device.value;if(value.startsWith('ble:')){connectBleMidi();return}const input=midiAccess?.inputs.get(value);if(input&&midiActivity.has(input.id)){connectMidi();return}if(navigator.bluetooth){connectBleMidi();return}connectMidi()};
+// ── CONFIGURACIÓN MAESTRA: permite al móvil volver a cargar el JSON original publicado junto al HTML. ──
+async function loadMasterFxConfig(){const button=$('loadFxButton');if(!button)return;button.disabled=true;button.textContent='CARGANDO…';try{const response=await fetch('./show-pad-config.json',{cache:'no-store'});if(!response.ok)throw new Error(`HTTP ${response.status} al solicitar show-pad-config.json`);const config=await response.json();if(!config||!Array.isArray(config.assignments))throw new Error('El JSON no contiene una lista válida de asignaciones.');applyConfig(config);localStorage.setItem('myrockomix-show-pad-config',JSON.stringify(serializeConfig()));failedPads.clear();failedAudioPaths.clear();renderPads();preloadInitialPages();showError('Configuración maestra cargada. Se actualizaron las asignaciones de tus pads.');}catch(error){console.error('SHOW PAD: no se pudo cargar show-pad-config.json',error);showError('No se pudo cargar la configuración maestra. Comprueba que show-pad-config.json esté publicado junto al HTML y que tengas conexión.')}finally{button.disabled=false;button.textContent='↻ CARGAR FX´S'}}
+$('loadFxButton')?.addEventListener('click',loadMasterFxConfig);
+// ── INICIO: carga config, pinta hojas y precarga páginas 1 y 2 sin UI de carga. ──
+async function initializeShowPad(){let config=DEFAULT_CONFIG;try{const saved=localStorage.getItem('myrockomix-show-pad-config');if(saved)config=JSON.parse(saved);else{try{const response=await fetch('./show-pad-config.json',{cache:'no-store'});if(response.ok)config=await response.json()}catch{}localStorage.setItem('myrockomix-show-pad-config',JSON.stringify(config))}}catch{config=DEFAULT_CONFIG}await loadPersonalAudios();await requestPersistentStorage();applyConfig(config);ensurePageButtons();renderPads();preloadInitialPages();initializeMidi();restoreConfigFileLink()}
+initializeShowPad();
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "profileId": "m-vave-smc-mixer",
+  "manufacturer": "M-VAVE",
+  "model": "SMC-Mixer",
+  "displayName": "SMC-Mixer",
+  "match": {
+    "nameRegex": "(?i)smc[\\s-]*mixer"
+  },
+  "hardware": {
+    "pads": 0,
+    "padBanks": 0,
+    "encoders": 8,
+    "faders": 8,
+    "buttons": 43,
+    "connection": [
+      "USB-C MIDI",
+      "BLE MIDI"
+    ]
+  },
+  "controlTypes": [
+    "controlChange",
+    "note",
+    "pitchBend"
+  ],
+  "controls": {
+    "faders": 8,
+    "encoders": 8,
+    "buttons": 43,
+    "mappingStatus": "unverified-community-profile",
+    "note": "A community profile exists, but the published channel/message assignments are explicitly marked unverified. Keep controls available for a future assignable-controls editor."
+  },
+  "visibility": {
+    "requireConnectedMidiInput": true,
+    "requireIncomingMidiActivity": true
+  },
+  "verifiedOnUserHardware": false
+}

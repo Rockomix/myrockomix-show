@@ -1,0 +1,14 @@
+{
+  "name": "myrockomix-show",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Control local de myRockomix SHOW.",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check electron-main.js && node --check electron-preload.js && node --check js/show-engine.js && node --check js/score-core.js && node --check js/show-room.js && node --check js/show-score.js && node --check js/score-audio.js"
+  },
+  "devDependencies": {
+    "electron": "^40.0.0"
+  }
+}

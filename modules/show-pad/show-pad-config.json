@@ -1,0 +1,90 @@
+{
+  "version": 3,
+  "assignments": [
+    {
+      "page": 1,
+      "padId": 1,
+      "path": "/sounds/fxs/kikekaraoke-envivo.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 2,
+      "path": "/sounds/fxs/parrapapa.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 5,
+      "path": "/sounds/fx_califica/6_dun_dun_dun.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 6,
+      "path": "/sounds/fx_califica/6_grillos.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 7,
+      "path": "/sounds/fx_califica/7_aww.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 8,
+      "path": "/sounds/fx_califica/8_risa_kid.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 9,
+      "path": "/sounds/fx_califica/9_ultrainstinto.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 10,
+      "path": "/sounds/fx_califica/10_aplusos.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 15,
+      "path": "/sounds/fxs/intro_sonido_karaomix.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 16,
+      "path": "/sounds/fxs/la_fiesta_tiene_luz.mp3",
+      "volume": 47
+    },
+    {
+      "page": 1,
+      "padId": 3,
+      "path": "/sounds/fxs/mambos_socios_del_ritmo.mp3",
+      "volume": 78
+    },
+    {
+      "page": 1,
+      "padId": 12,
+      "path": "/sounds/fxs/promo_reggaeton.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 11,
+      "path": "/sounds/fxs/fanfarrias.mp3",
+      "volume": 100
+    },
+    {
+      "page": 1,
+      "padId": 13,
+      "path": "/sounds/fx_califica/9_wow.mp3",
+      "volume": 100
+    }
+  ],
+  "padActions": []
+}

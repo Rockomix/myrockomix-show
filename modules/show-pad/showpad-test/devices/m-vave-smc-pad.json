@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "profileId": "m-vave-smc-pad",
+  "manufacturer": "M-VAVE",
+  "model": "SMC-PAD",
+  "displayName": "SMC-PAD",
+  "match": {
+    "nameRegex": "(?i)^smc[\\s-]*pad(\\s+(midi|port))?(\\s+\\d+)?$"
+  },
+  "hardware": {
+    "pads": 16,
+    "padBanks": null,
+    "encoders": 8,
+    "faders": 0,
+    "buttons": 10,
+    "connection": [
+      "USB-C MIDI",
+      "BLE MIDI"
+    ]
+  },
+  "controlTypes": [
+    "note",
+    "controlChange",
+    "programChange"
+  ],
+  "padMapping": {
+    "strategy": "profile-defined-midi-map",
+    "status": "provisional-community-map",
+    "defaultChannel": 10,
+    "firstBank": {
+      "pad01ToPad16Notes": [
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51
+      ]
+    },
+    "banking": "not assumed; must be confirmed for the selected firmware/MidiSuite preset",
+    "noteOnVelocityGreaterThan": 0,
+    "noteOff": "ignore",
+    "note": "Community map lists pads 01-16 as notes 36-51 on channel 10; not verified on the user's hardware."
+  },
+  "visibility": {
+    "requireConnectedMidiInput": true,
+    "requireIncomingMidiActivity": true
+  },
+  "verifiedOnUserHardware": false
+}

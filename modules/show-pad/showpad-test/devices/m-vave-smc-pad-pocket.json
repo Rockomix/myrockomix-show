@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "profileId": "m-vave-smc-pad-pocket",
+  "manufacturer": "M-VAVE",
+  "model": "SMC-PAD Pocket",
+  "displayName": "SMC-PAD Pocket",
+  "match": {
+    "nameRegex": "(?i)smc[\\s-]*pad[\\s-]*pocket|smc[\\s-]*pad\\s*(midi|port)?"
+  },
+  "hardware": {
+    "pads": 16,
+    "padBanks": 7,
+    "encoders": 0,
+    "faders": 0,
+    "buttons": null,
+    "connection": [
+      "USB-C MIDI",
+      "BLE MIDI"
+    ]
+  },
+  "controlTypes": [
+    "note"
+  ],
+  "padMapping": {
+    "strategy": "banked-note-range",
+    "status": "provisional-community-map",
+    "defaultChannel": 10,
+    "bankCount": 7,
+    "padsPerBank": 16,
+    "firstBankFirstNote": 36,
+    "notesPerBankOffset": 16,
+    "physicalPadOrder": "pad-01-through-pad-16",
+    "noteOnVelocityGreaterThan": 0,
+    "noteOff": "ignore",
+    "note": "Base note range and bank progression must be validated against this Pocket unit/firmware before treating as definitive."
+  },
+  "visibility": {
+    "requireConnectedMidiInput": true,
+    "requireIncomingMidiActivity": true
+  },
+  "verifiedOnUserHardware": false
+}
