@@ -40,6 +40,56 @@
 .menu-backdrop{position:fixed;inset:0;z-index:20;display:none}.menu-backdrop.show{display:block}.menu{position:fixed;z-index:21;width:min(300px,calc(100vw - 24px));max-height:min(72vh,520px);overflow:auto;padding:10px;background:#191e25;border:1px solid #414b58;border-radius:9px;box-shadow:0 18px 55px #000b;display:none}.menu.show{display:block}.menu-head{display:flex;justify-content:space-between;align-items:center;padding:3px 4px 10px;border-bottom:1px solid #343b45;margin-bottom:7px}.menu-head strong{font-size:12px}.close{border:0;background:transparent;color:#aab4c0;font-size:20px;cursor:pointer}.action{width:100%;display:flex;align-items:center;gap:9px;text-align:left;padding:10px 9px;border:0;border-radius:7px;background:transparent;color:#e4e9ef;font-size:12px;cursor:pointer}.action:hover{background:#ffffff0d}.action .ico{width:17px;text-align:center;color:#9fcdf2}.action.danger .ico{color:#ff8993}.action.add-local-audio{background:linear-gradient(135deg,#f6d34a,#e9ad24);color:#201b0b;font-weight:800;border:1px solid #ffe27a;box-shadow:0 2px 10px #e9ad2438}.action.add-local-audio .ico{color:#201b0b;font-size:17px;font-weight:900}.action.add-local-audio:hover{background:linear-gradient(135deg,#ffe36b,#f2bf36);box-shadow:0 3px 14px #e9ad2455;transform:translateY(-1px)}.action.add-local-audio:focus-visible{outline:2px solid #fff1a8;outline-offset:2px}.subpanel{padding:9px 8px 10px;border-top:1px solid #343b45;margin-top:5px}.subpanel label{display:flex;justify-content:space-between;color:#c0c8d2;font-size:11px;margin-bottom:9px}.subpanel input[type=range]{width:100%;accent-color:#42a5ff}.search{width:100%;height:35px;margin:5px 0 8px;padding:0 10px;background:#101318;border:1px solid #3a424d;border-radius:7px;color:white;outline:none}.sound-list{max-height:220px;overflow:auto}.sound-item{width:100%;display:flex;flex-direction:column;gap:3px;text-align:left;padding:8px;border:0;border-radius:6px;background:transparent;color:#e8edf3;cursor:pointer}.sound-item:hover{background:#ffffff0d}.sound-item small{color:#8995a3;font-size:10px}.sound-row{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:4px;align-items:center}.sound-row.personal{grid-template-columns:minmax(0,1fr) 34px 34px}.remove-audio{border-color:#684047;background:#2b1b20;color:#ff9ba2;font-size:19px;line-height:1}.remove-audio:hover{background:#49232a}.preview{height:32px;width:34px;border:1px solid #3b5268;border-radius:6px;background:#1b2a38;color:#a9d5fa;cursor:pointer}.preview:hover{background:#29445d}.section-label{padding:8px 7px 4px;color:#929daa;font-size:9px;font-weight:900;letter-spacing:1.2px}.empty{padding:12px;color:#929daa;font-size:11px}
 @media(max-width:650px){body{padding:12px}.controls{grid-template-columns:1fr 1fr}.device{grid-column:1/-1}.num{font-size:17px}.name{font-size:14px}.dots{width:24px;height:24px}}
 @media(max-width:380px){.grid{gap:.375rem}.pad,.pad-wrap{width:7rem;height:7rem;min-height:7rem;min-width:7rem}.num{font-size:15px}}
+@media(max-width:650px){
+ body{width:100%;min-width:0;padding:10px;overflow-x:hidden}
+ .app{width:100%;min-width:0}
+ .top{align-items:flex-start;gap:8px;margin-bottom:10px}
+ .top h1{font-size:clamp(18px,5.8vw,25px)}
+ .sub{font-size:9px;letter-spacing:1.6px}
+ .top-actions{gap:5px;max-width:58%;}
+ .tag,.config-file,.load-fx{padding:9px 8px;font-size:9px;letter-spacing:.35px}
+ .controls{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:10px;margin-bottom:9px}
+ .controls .device{grid-column:1/-1}
+ .controls select,.controls .status,.controls .power{height:42px;min-height:42px}
+ .controls select{font-size:12px;padding-inline:9px}
+ .status,.power{min-width:0;width:100%;padding-inline:8px;font-size:10px}
+ .panel{padding:10px;margin-bottom:9px;overflow:visible}
+ .heading{align-items:stretch;flex-direction:column;gap:8px;margin-bottom:10px}
+ .heading h2{font-size:11px}
+ .pages{width:100%;gap:6px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;padding-bottom:2px;scrollbar-width:thin}
+ .page{flex:0 0 auto;min-width:42px;height:38px;padding-inline:11px;font-size:12px;touch-action:manipulation}
+ .page.add{font-size:21px}
+ .grid{width:100%;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:auto;gap:clamp(4px,1.7vw,8px);}
+ .pad-wrap{width:100%;height:auto;min-width:0;min-height:0;aspect-ratio:1}
+ .pad{width:100%;height:100%;min-width:0;min-height:0;padding:clamp(5px,1.8vw,9px);border-radius:7px}
+ .padtop{min-height:15px;gap:4px}
+ .num{font-size:clamp(9px,2.5vw,12px);letter-spacing:.04em}
+ .pad-icon svg{width:clamp(18px,7vw,28px);height:clamp(18px,7vw,28px)}
+ .name{font-size:clamp(10px,3.1vw,14px);line-height:1.08}
+ .pad.empty .name{font-size:clamp(9px,2.7vw,12px)}
+ .dots{right:2px;top:2px;width:30px;height:30px;padding:5px}
+ .dots svg{width:18px;height:18px}
+ .foot{font-size:9px;margin-top:9px;gap:8px}
+ .menu{width:min(300px,calc(100vw - 20px));max-height:calc(100dvh - 20px);padding:9px}
+ .action{min-height:42px;padding:10px 9px}
+ .sound-list{max-height:min(34vh,220px)}
+ .subpanel input[type=range]{height:28px}
+}
+@media(max-width:380px){
+ body{padding:8px}
+ .top-actions{max-width:54%}
+ .tag,.config-file,.load-fx{padding-inline:6px;font-size:8px}
+ .controls{padding:8px;gap:6px}
+ .panel{padding:8px}
+ .grid{gap:4px}
+ .pad{padding:4px}
+ .padtop{min-height:13px}
+ .dots{width:27px;height:27px}
+ .dots svg{width:16px;height:16px}
+}
+@media(min-width:651px) and (max-width:900px){
+ .app{width:min(100%,760px)}
+}
 html.compact-mode body{padding:8px;overflow:hidden}html.compact-mode .app{width:auto}html.compact-mode .top,html.compact-mode .controls,html.compact-mode .foot,html.compact-mode .notice{display:none}html.compact-mode .menu-backdrop:not(.show),html.compact-mode .menu:not(.show){display:none}html.compact-mode .menu-backdrop.show{display:block}html.compact-mode .menu.show{display:block}html.compact-mode .panel{margin:0;padding:10px}html.compact-mode .heading{margin-bottom:10px}
 .pad-action-config{margin-bottom:8px}.pad-action-select{height:36px;width:100%;margin:0;background:#101318;border:1px solid #3b424c;border-radius:7px;color:var(--txt);padding:0 9px;font-size:11px;font-weight:800}html:not(.compact-mode) .pad-action-config{display:none}
 </style>
@@ -89,14 +139,14 @@ const assignments={},padActions={};let currentPage=1,activePad=null,midiAccess=n
 const audioCache=new Map(),activeVoices=new Map(),failedPads=new Set(),failedAudioPaths=new Set(),pendingPadStarts=new Map();let previewVoice=null;
 // ── AUDIOS PERSONALES: blobs persistentes por navegador/dispositivo mediante IndexedDB. ──
 const PERSONAL_AUDIO_DB='myrockomix-show-pad-library',PERSONAL_AUDIO_STORE='audios';
-const localAudioRecords=new Map(),localAudioUrls=new Map();
+const localAudioRecords=new Map(),localAudioUrls=new Map();let personalAudiosReady=false;
 function openPersonalAudioDb(){return new Promise((resolve,reject)=>{const request=indexedDB.open(PERSONAL_AUDIO_DB,1);request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(PERSONAL_AUDIO_STORE)){const store=request.result.createObjectStore(PERSONAL_AUDIO_STORE,{keyPath:'id'});store.createIndex('name','name',{unique:false})}};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)})}
 async function loadPersonalAudios(){try{const db=await openPersonalAudioDb();const records=await new Promise((resolve,reject)=>{const tx=db.transaction(PERSONAL_AUDIO_STORE,'readonly');const request=tx.objectStore(PERSONAL_AUDIO_STORE).getAll();request.onsuccess=()=>resolve(request.result||[]);request.onerror=()=>reject(request.error)});db.close();records.forEach(record=>{localAudioRecords.set(record.id,record);localAudioUrls.set(record.id,URL.createObjectURL(record.blob))})}catch(error){console.error('SHOW PAD: no se pudo leer la biblioteca personal',error)}}
 async function storePersonalAudio(file){const id=`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`;const record={id,name:file.name,type:file.type||'audio/mpeg',size:file.size,addedAt:Date.now(),blob:file};const db=await openPersonalAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PERSONAL_AUDIO_STORE,'readwrite');tx.objectStore(PERSONAL_AUDIO_STORE).put(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();localAudioRecords.set(id,record);localAudioUrls.set(id,URL.createObjectURL(file));return `local-audio:${id}`}
 // Elimina un audio personal del dispositivo y libera sus referencias para evitar pads en rojo.
 async function removePersonalAudio(id){const path=`local-audio:${id}`;try{const db=await openPersonalAudioDb();await new Promise((resolve,reject)=>{const tx=db.transaction(PERSONAL_AUDIO_STORE,'readwrite');tx.objectStore(PERSONAL_AUDIO_STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close();const howl=audioCache.get(path);if(howl){howl.stop();howl.unload();audioCache.delete(path)}if(previewVoice?.path===path){previewVoice.howl.stop(previewVoice.soundId);previewVoice=null}const url=localAudioUrls.get(id);if(url)URL.revokeObjectURL(url);localAudioUrls.delete(id);localAudioRecords.delete(id);failedAudioPaths.delete(path);for(const [key,assignment] of Object.entries(assignments)){if(assignment.path===path){delete assignments[key];failedPads.delete(key)}}saveAssignments();renderPads();renderSoundList();showError('Audio eliminado de Mis audios y de las asignaciones que lo utilizaban.')}catch(error){console.error('SHOW PAD: no se pudo eliminar el audio personal',error);showError('No se pudo eliminar el audio. Revisa el almacenamiento del navegador.')}}
 function localAudioId(path){return String(path||'').startsWith('local-audio:')?String(path).slice('local-audio:'.length):null}
-async function requestPersistentStorage(){try{if(navigator.storage?.persist)await navigator.storage.persist()}catch{}}
+async function requestPersistentStorage(){personalAudiosReady=true;try{if(navigator.storage?.persist)await navigator.storage.persist()}catch{}}
 const $=id=>document.getElementById(id);
 const grid=$('padGrid'),pages=$('pages'),menu=$('padMenu'),backdrop=$('backdrop'),soundPanel=$('soundPanel'),volumePanel=$('volumePanel'),soundList=$('soundList'),soundSearch=$('soundSearch'),notice=$('notice');
 function filename(path){return decodeURIComponent(String(path||'').split('/').pop()).replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ')}
@@ -105,7 +155,15 @@ function audioDisplayName(path){const id=localAudioId(path);if(id){const record=
 // AUDIO: PC usa la biblioteca local del proyecto; móviles usan GitHub Raw.
 const AUDIO_BASE='https://raw.githubusercontent.com/Rockomix/rockomix-partykit/main/public';
 const isLocalFileLaunch=()=>window.location.protocol==='file:';
-function audioUrl(path){const personalId=localAudioId(path);if(personalId)return localAudioUrls.get(personalId)||'';const normalized=String(path||'').trim().replace(/^\/+/, '');if(!normalized)return '';if(!isLocalFileLaunch())return `${AUDIO_BASE}/${normalized}`;return new URL(`../../assets/audio/${normalized.replace(/^sounds\//,'')}`,document.baseURI).href}
+function audioUrl(path){if(!audioInteractionReady)return '';const personalId=localAudioId(path);if(personalId)return localAudioUrls.get(personalId)||'';const normalized=String(path||'').trim().replace(/^\/+/, '');if(!normalized)return '';if(!isLocalFileLaunch())return `${AUDIO_BASE}/${normalized}`;return new URL(`../../assets/audio/${normalized.replace(/^sounds\//,'')}`,document.baseURI).href}
+function resumeAudioContext(){const context=window.Howler?.ctx;if(!context||context.state!=='suspended')return Promise.resolve();return context.resume().catch(error=>{console.warn('SHOW PAD: no se pudo reanudar AudioContext',error);});}
+let audioInteractionReady=Boolean(window.showHost?.openShowPad);
+function unlockAudio(){audioInteractionReady=true;void resumeAudioContext().then(()=>{if(typeof preloadInitialPages==='function')preloadInitialPages()})}
+document.addEventListener('pointerdown',unlockAudio,{passive:true});
+document.addEventListener('keydown',unlockAudio,{passive:true});
+// Chrome no puede hacer XHR de Web Audio sobre file://; usa el elemento HTML5
+// directamente. Electron conserva Web Audio y recibe los MP3 por su protocolo.
+if(!window.showHost?.openShowPad&&window.Howl){const NativeHowl=window.Howl;window.Howl=function(options){return new NativeHowl({...options,html5:true})};window.Howl.prototype=NativeHowl.prototype}
 function showError(message){notice.textContent=message;notice.classList.add('show');setTimeout(()=>notice.classList.remove('show'),7000)}
 function hideError(){notice.classList.remove('show');notice.textContent=''}
 function applyConfig(config){Object.keys(assignments).forEach(k=>delete assignments[k]);Object.keys(padActions).forEach(k=>delete padActions[k]);(config?.assignments||[]).forEach(item=>{if(!Number.isInteger(Number(item.padId))||!item.path)return;const page=Math.max(1,Number(item.page)||1),padId=Number(item.padId);assignments[`${page}:${padId}`]={path:item.path,volume:Math.max(0,Math.min(100,Number(item.volume??100)))};});(config?.padActions||[]).forEach(item=>{const page=Math.max(1,Number(item.page)||1),padId=Number(item.padId),action=item.action;if(Number.isInteger(padId)&&padId>=1&&padId<=16&&['fx','score','score10'].includes(action))padActions[`${page}:${padId}`]=action;});}
@@ -136,8 +194,13 @@ function ensurePageButtons(){const existing=[...pages.querySelectorAll('[data-pa
 function personalAudioFormat(path){const id=localAudioId(path);if(!id)return undefined;const record=localAudioRecords.get(id);const match=record?.name?.match(/\.([^.]+)$/);return match?[match[1].toLowerCase()]:undefined}
 function getHowl(path){if(!path||failedAudioPaths.has(path))return null;if(audioCache.has(path))return audioCache.get(path);if(typeof Howl==='undefined')return null;const src=audioUrl(path);if(!src){console.warn('SHOW PAD: no se encontró el archivo de audio',path);return null}/* MOTOR ORIGINAL CONSERVADO: Howler Web Audio (html5:false) para inventario y audios personales. format informa a Howler del códec del Blob, cuya URL no conserva la extensión del archivo. */const format=personalAudioFormat(path);const howl=new Howl({src:[src],...(format?{format}:{}),preload:false,html5:false,volume:1,pool:24,onloaderror:(_id,error)=>{console.error('SHOW PAD: error cargando audio',path,error);handleAudioLoadError(path,error)},onload:()=>{failedAudioPaths.delete(path);failedPads.forEach(key=>{const a=assignments[key];if(a?.path===path)failedPads.delete(key)});renderPads()}});audioCache.set(path,howl);return howl}
 function handleAudioLoadError(path,error){if(failedAudioPaths.has(path))return;failedAudioPaths.add(path);const affected=Object.entries(assignments).filter(([,a])=>a.path===path).map(([key])=>key);affected.forEach(key=>{failedPads.add(key);pendingPadStarts.delete(key)});renderPads();/* Audio ausente o sin conexión: omitir silenciosamente, sin reintentos ni avisos repetitivos. */}
-function preloadPath(path){if(!path||failedAudioPaths.has(path))return;const howl=getHowl(path);if(!howl)return;if(howl.state()==='unloaded')howl.load()}
-function preloadPage(page){assignedPathsForPage(page).forEach(preloadPath)}
+function audioResolution(path){if(!audioInteractionReady)return 'interaction-pending';const personalId=localAudioId(path);if(personalId&&!localAudioUrls.has(personalId))return personalAudiosReady?'missing-local':'local-pending';if(!String(path||'').trim())return 'missing-path';return 'ready'}
+const originalGetHowl=getHowl;
+getHowl=function(path){const resolution=audioResolution(path);if(resolution!=='ready'){if(resolution==='missing-local')console.warn('SHOW PAD: audio local no disponible en IndexedDB',path);else if(resolution==='missing-path')console.warn('SHOW PAD: asignación sin ruta de audio',path);return null}return originalGetHowl(path)};
+const preloadQueue=[],preloadQueued=new Set();let preloadActive=0;const PRELOAD_CONCURRENCY=2;
+function pumpPreloadQueue(){while(preloadActive<PRELOAD_CONCURRENCY&&preloadQueue.length){const path=preloadQueue.shift();preloadQueued.delete(path);const howl=getHowl(path);if(!howl||howl.state()!=='unloaded')continue;preloadActive++;const done=()=>{preloadActive=Math.max(0,preloadActive-1);pumpPreloadQueue()};howl.once('load',done);howl.once('loaderror',done);howl.load()}}
+function preloadPath(path){if(!path||failedAudioPaths.has(path)||preloadQueued.has(path))return;const howl=getHowl(path);if(!howl||howl.state()!=='unloaded')return;preloadQueued.add(path);preloadQueue.push(path);pumpPreloadQueue()}
+function preloadPage(page){[...new Set(assignedPathsForPage(page))].forEach(preloadPath)}
 function preloadInitialPages(){preloadPage(1);preloadPage(2)}
 function playPad(id){const key=`${currentPage}:${id}`,assignment=getAssignment(id);if(!assignment.path||failedAudioPaths.has(assignment.path))return;const existing=activeVoices.get(key);if(existing){existing.howl.stop(existing.soundId);activeVoices.delete(key);renderPads();return}if(pendingPadStarts.has(key)){pendingPadStarts.delete(key);return}const howl=getHowl(assignment.path);if(!howl){showError('Howler.js no está disponible. Comprueba la conexión inicial para cargar el motor de audio.');return}const pendingToken={};pendingPadStarts.set(key,pendingToken);const start=()=>{if(pendingPadStarts.get(key)!==pendingToken)return;pendingPadStarts.delete(key);const latest=getAssignment(id);if(!latest.path)return;const soundId=howl.play();howl.volume(latest.volume/100,soundId);activeVoices.set(key,{howl,soundId,path:latest.path});renderPads();howl.once('end',()=>{const voice=activeVoices.get(key);if(voice?.soundId===soundId)activeVoices.delete(key);renderPads()},soundId);howl.once('stop',()=>{const voice=activeVoices.get(key);if(voice?.soundId===soundId)activeVoices.delete(key);renderPads()},soundId)};if(howl.state()==='loaded')start();else{preloadPath(assignment.path);howl.once('load',start);howl.once('loaderror',()=>{pendingPadStarts.delete(key);failedAudioPaths.add(assignment.path);failedPads.add(key);renderPads()})}}
 async function triggerPad(id){if(IS_COMPACT_VIEW&&window.showHost?.triggerPad){await window.showHost.triggerPad({page:currentPage,padId:id});return}playPad(id)}
@@ -172,8 +235,9 @@ function renderPads(){
   wrap.append(b,dots);grid.append(wrap);
  });
 }
-function selectPage(n){if(!pages.querySelector(`[data-page="${n}"]`)){const b=document.createElement('button');b.className='page';b.dataset.page=n;b.textContent=n;pages.insertBefore(b,pages.querySelector('[data-add]'))}currentPage=n;pages.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',Number(x.dataset.page)===n));$('pageLabel').textContent=`PÁGINA ${n}`;closeMenu();renderPads();if(n>2)preloadPage(n)}
+function selectPage(n){if(!Number.isInteger(Number(n))||Number(n)<1)return;n=Number(n);if(!pages.querySelector(`[data-page="${n}"]`)){const b=document.createElement('button');b.className='page';b.dataset.page=n;b.textContent=n;pages.insertBefore(b,pages.querySelector('[data-add]'))}currentPage=n;pages.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',Number(x.dataset.page)===n));$('pageLabel').textContent=`PÁGINA ${n}`;window.showHost?.setShowFxPage?.(n);closeMenu();renderPads();if(n>2)preloadPage(n)}
 pages.addEventListener('click',e=>{const target=e.target.closest('[data-page]');if(target){selectPage(Number(target.dataset.page));return}if(e.target.closest('[data-add]')){const nums=[...pages.querySelectorAll('[data-page]')].map(x=>Number(x.dataset.page));const n=Math.max(2,...nums)+1;const b=document.createElement('button');b.className='page';b.dataset.page=n;b.textContent=n;pages.insertBefore(b,pages.querySelector('[data-add]'));selectPage(n)}});
+document.addEventListener('keydown',event=>{if(!IS_COMPACT_VIEW||!['PageDown','PageUp'].includes(event.key)||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;const available=[...pages.querySelectorAll('[data-page]')].map(button=>Number(button.dataset.page)).filter(Number.isInteger).sort((a,b)=>a-b);const index=available.indexOf(currentPage);const nextIndex=event.key==='PageDown'?Math.min(available.length-1,index+1):Math.max(0,index-1);if(index<0||nextIndex===index)return;event.preventDefault();selectPage(available[nextIndex])});
 function openMenu(id,anchor){activePad=id;$('menuTitle').textContent=`PAD ${String(id).padStart(2,'0')} · OPCIONES`;const r=anchor.getBoundingClientRect();menu.style.left=Math.min(Math.max(12,r.right-292),innerWidth-312)+'px';menu.style.top=Math.min(r.bottom+5,innerHeight-390)+'px';menu.classList.add('show');backdrop.classList.add('show');soundPanel.hidden=true;volumePanel.hidden=true;$('volumeRange').value=getAssignment(id).volume;$('padActionSelect').value=getPadAction(currentPage,id);updateVolumeLabel()}
 function closeMenu(){menu.classList.remove('show');backdrop.classList.remove('show');activePad=null}
 $('closeMenu').onclick=closeMenu;backdrop.onclick=closeMenu;

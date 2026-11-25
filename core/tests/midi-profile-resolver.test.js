@@ -25,6 +25,7 @@ test("resolves SMC-PAD Pocket banked notes", () => {
   });
   assert.deepEqual(resolveMidiNote({ deviceName: "SMC-PAD Pocket", note: 51 }, profiles).padId, 16);
   assert.deepEqual(resolveMidiNote({ deviceName: "SMC-PAD Pocket", note: 52 }, profiles).page, 2);
+  assert.equal(resolveMidiNote({ deviceName: "SMC-PAD Pocket", note: 39 }, profiles).padId, 4);
 });
 
 test("identifies SMC-MIXER-Bt as its independent mixer profile", () => {

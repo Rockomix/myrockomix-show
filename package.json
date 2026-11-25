@@ -6,7 +6,7 @@
   "main": "electron-main.js",
   "scripts": {
     "start": "electron .",
-    "check": "node --check electron-main.js && node --check electron-preload.js && node --check js/show-engine.js && node --check js/score-core.js && node --check js/show-room.js && node --check js/show-score.js && node --check js/score-audio.js"
+    "check": "node --check electron-main.js && node --check electron-preload.js && node --check js/show-engine.js && node --check js/score-core.js && node --check js/show-room.js && node --check js/show-score.js && node --check js/score-audio.js && node --check core/score-pad-press-detector.js && node --check core/assigned-midi-resolver.js"
   },
   "devDependencies": {
     "electron": "^40.0.0"

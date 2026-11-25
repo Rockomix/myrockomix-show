@@ -1,13 +1,25 @@
-const { app, BrowserWindow, ipcMain, screen, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, Menu, dialog, protocol, net } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
+const { execFile } = require("node:child_process");
+const { promisify } = require("node:util");
 const { pathToFileURL } = require("node:url");
-const { LocalShowEngine, createRequestId } = require("./js/show-engine.js");
+const { EngineCore } = require("./core/engine-core.js");
+const { createRequestId } = require("./core/command-contract.js");
+const { resolveAssignedMidiNote, matchesScorePadAssignment } = require("./core/assigned-midi-resolver.js");
+const { PcMidiManager } = require("./pc-midi-manager.js");
+const { createScorePadPressDetector } = require("./core/score-pad-press-detector.js");
 const {
   chooseRatingPhrase,
   generateRatingScore,
   isRatingScore,
 } = require("./js/score-core.js");
+const execFileAsync = promisify(execFile);
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: "rockomix-audio",
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true },
+}]);
 
 const SHOWROOM_SIZE = { width: 300, height: 500 };
 const SHOW_PAD_SIZE = { width: 540, height: 620 };
@@ -24,8 +36,14 @@ let scoreSequenceActive = false;
 let scoreCloseInProgress = false;
 let scoreRevealStartedAt;
 let applicationShutdownInProgress = false;
+let midiManager;
+let scorePadAssignment = null;
+let scorePadAssignmentMode = false;
+const recentAssignedMidiEvents = new Map();
+const BLE_DEVICE_NAME_PATTERN = /^smc[\s-]*(?:pad[\s-]*pocket|mixer)(?:[\s-]*bt)?$/i;
 const padActions = new Map();
 let showPadReady = false;
+let activeShowFxPage = 1;
 const queuedPadTriggers = [];
 const midiProfiles = loadMidiProfiles();
 
@@ -89,37 +107,187 @@ function loadInitialPadActions() {
   }
 }
 
-function resolveMidiPad(deviceName, note, deviceId = "") {
-  // El SMC-PAD Pocket puede anunciarse por BLE como "SMC-Mixer-Bt".
-  // La implementación MIDI original identificaba ese transporte por el
-  // prefijo ble:, no por el nombre Bluetooth anunciado.
-  const isSmcPadBleTransport = String(deviceId).startsWith("ble:") ||
-    /^smc[\s-]*mixer[\s-]*bt$/i.test(String(deviceName || ""));
-  const profile = isSmcPadBleTransport
-    ? midiProfiles.find((item) => item.profileId === "m-vave-smc-pad-pocket")
-    : midiProfiles.find((item) => item._namePattern?.test(String(deviceName || "")));
-  const mapping = profile?.padMapping;
-  if (!mapping) return null;
+function midiPreferencePath() {
+  return path.join(app.getPath("userData"), "show-midi-device.json");
+}
 
-  if (mapping.strategy === "banked-note-range") {
-    const firstNote = Number(mapping.firstBankFirstNote);
-    const padsPerBank = Number(mapping.padsPerBank);
-    const bankCount = Number(mapping.bankCount);
-    const offset = Number(mapping.notesPerBankOffset || padsPerBank);
-    const delta = Number(note) - firstNote;
-    if (!Number.isInteger(delta) || delta < 0 || delta >= bankCount * offset || padsPerBank < 1) return null;
-    const bank = Math.floor(delta / offset);
-    const padId = (delta % offset) + 1;
-    return { profileId: profile.profileId, page: bank + 1, padId, bank: bank + 1 };
+function loadPreferredMidiDeviceId() {
+  try {
+    const value = JSON.parse(fs.readFileSync(midiPreferencePath(), "utf8"));
+    return typeof value?.deviceId === "string" ? value.deviceId : "";
+  } catch {
+    return "";
+  }
+}
+
+function savePreferredMidiDeviceId(deviceId) {
+  try {
+    fs.mkdirSync(path.dirname(midiPreferencePath()), { recursive: true });
+    fs.writeFileSync(midiPreferencePath(), JSON.stringify({ deviceId }, null, 2));
+  } catch (error) {
+    console.warn("SHOW MIDI: no se pudo guardar el dispositivo preferido.", error);
+  }
+}
+
+function scorePadAssignmentPath() {
+  return path.join(app.getPath("userData"), "show-score-pad-assignment.json");
+}
+
+function defaultScorePadAssignment() {
+  return {
+    profileId: "m-vave-smc-pad-pocket",
+    profileName: "SMC-PAD POCKET",
+    page: 1,
+    padId: 4,
+    note: 39,
+    deviceName: "SMC-PAD Pocket-Bt",
+    deviceId: "",
+  };
+}
+
+function loadScorePadAssignment() {
+  scorePadAssignment = defaultScorePadAssignment();
+  try {
+    const value = JSON.parse(fs.readFileSync(scorePadAssignmentPath(), "utf8"));
+    const page = Number(value?.page);
+    const padId = Number(value?.padId);
+    const note = Number(value?.note);
+    if (typeof value?.profileId === "string" && Number.isInteger(page) && page > 0
+      && Number.isInteger(padId) && padId >= 1 && padId <= 16
+      && Number.isInteger(note) && note >= 0 && note <= 127) {
+      scorePadAssignment = { ...scorePadAssignment, ...value, page, padId, note };
+    }
+  } catch {
+    // La asignación predeterminada se utiliza en la primera ejecución.
+  }
+}
+
+function saveScorePadAssignment() {
+  try {
+    fs.mkdirSync(path.dirname(scorePadAssignmentPath()), { recursive: true });
+    fs.writeFileSync(scorePadAssignmentPath(), JSON.stringify(scorePadAssignment, null, 2));
+  } catch (error) {
+    console.warn("SHOW SCORE: no se pudo guardar la asignación MIDI.", error);
+  }
+}
+
+function isActiveMidiPayload(payload) {
+  const activeId = midiManager?.getState().connectedDeviceId;
+  console.info("[MIDI TRACE] assigned.active-check", { payloadDeviceId: payload?.deviceId, activeDeviceId: activeId, transport: payload?.transport });
+  return Boolean(activeId) && String(activeId) === String(payload?.deviceId || "");
+}
+
+function isDuplicateAssignedMidiEvent(payload, resolved) {
+  const timestamp = Number(payload?.timestamp);
+  if (!Number.isFinite(timestamp)) return false;
+
+  // El mismo Note On puede llegar por más de un transporte. El timestamp
+  // identifica la misma entrega física sin confundirla con una segunda
+  // pulsación válida dentro de la ventana de doble pulsación.
+  const key = [
+    resolved.profileId,
+    resolved.page,
+    resolved.padId,
+    Number(payload?.status) & 0xff,
+    Number(payload?.note),
+    Number(payload?.velocity),
+    timestamp,
+  ].join(":");
+  if (recentAssignedMidiEvents.has(key)) return true;
+
+  const timer = setTimeout(() => recentAssignedMidiEvents.delete(key), 1_000);
+  recentAssignedMidiEvents.set(key, timer);
+  return false;
+}
+
+async function dispatchAssignedScore(score) {
+  const command = {
+    type: "SCORE_SHOW",
+    // Reutiliza el mismo contrato que los botones CALIFICAR y 10.
+    id_pad: "score",
+    source: "pc",
+    params: score === 10 ? { score: 10 } : {},
+    requestId: createRequestId(),
+  };
+  console.info("[MIDI TRACE] assigned.dispatch-score", { score: score ?? "random", command });
+  const result = await engine.dispatch(command);
+  console.info("[MIDI TRACE] assigned.dispatch-score-result", { score: score ?? "random", result });
+  return result;
+}
+
+const scorePadPressDetector = createScorePadPressDetector({
+  onSingle: () => dispatchAssignedScore(),
+  onDouble: () => dispatchAssignedScore(10),
+});
+
+async function handleAssignedScoreMidi(payload) {
+  console.info("[MIDI TRACE] assigned.enter", { payload, savedAssignment: scorePadAssignment, assignmentMode: scorePadAssignmentMode });
+  if (!isActiveMidiPayload(payload)) {
+    console.debug("SHOW SCORE MIDI: evento ignorado porque el deviceId no es el conectado.", {
+      payloadDeviceId: payload?.deviceId,
+      activeDeviceId: midiManager?.getState().connectedDeviceId,
+      transport: payload?.transport,
+    });
+    return null;
+  }
+  const status = Number(payload?.status) & 0xff;
+  const velocity = Number(payload?.velocity) || 0;
+  if ((status & 0xf0) !== 0x90 || velocity <= 0) {
+    console.info("[MIDI TRACE] assigned.discard", { reason: (status & 0xf0) !== 0x90 ? "not-note-on" : "velocity-not-positive", status, velocity, note: payload?.note, data1: payload?.data1 });
+    return null;
   }
 
-  if (mapping.strategy === "profile-defined-midi-map") {
-    const notes = mapping.firstBank?.pad01ToPad16Notes || [];
-    const index = notes.indexOf(Number(note));
-    if (index < 0) return null;
-    return { profileId: profile.profileId, page: 1, padId: index + 1, bank: 1 };
+  const resolved = resolveAssignedMidiNote(payload, {
+    devices: midiManager?.getState().devices,
+    profiles: midiProfiles,
+  });
+  console.info("[MIDI TRACE] assigned.resolution", { payloadDeviceId: payload?.deviceId, payloadDeviceName: payload?.deviceName, payloadProfileId: payload?.profileId, note: payload?.note, noteNumber: payload?.noteNumber, data1: payload?.data1, resolved });
+  if (!resolved) {
+    console.info("[MIDI TRACE] assigned.discard", { reason: "assigned-note-unmapped" });
+    return null;
   }
-  return null;
+  if (isDuplicateAssignedMidiEvent(payload, resolved)) {
+    console.info("[MIDI TRACE] assigned.discard", { reason: "duplicate-event", resolved });
+    return { accepted: false, ignored: true, duplicate: true, page: resolved.page, padId: resolved.padId };
+  }
+
+  if (scorePadAssignmentMode) {
+    await midiManager.handleMidiMessage(payload, { skipPadDispatch: true });
+    scorePadAssignment = {
+      ...scorePadAssignment,
+      profileId: resolved.profileId,
+      profileName: resolved.profileName,
+      page: resolved.page,
+      padId: resolved.padId,
+      note: Number(payload.note),
+      deviceId: String(payload.deviceId || ""),
+      deviceName: String(payload.deviceName || ""),
+    };
+    scorePadAssignmentMode = false;
+    saveScorePadAssignment();
+    return { accepted: true, action: "assigned", assignment: { ...scorePadAssignment }, page: resolved.page, padId: resolved.padId };
+  }
+
+  if (!matchesScorePadAssignment(resolved, scorePadAssignment)) {
+    console.debug("SHOW SCORE MIDI: evento recibido fuera de la asignación.", {
+      deviceId: payload.deviceId,
+      deviceName: payload.deviceName,
+      profileId: payload.profileId,
+      resolved,
+      assignment: scorePadAssignment,
+    });
+    return null;
+  }
+  console.info("[MIDI TRACE] assigned.match", { resolved, assignment: scorePadAssignment });
+  await midiManager.handleMidiMessage(payload, { skipPadDispatch: true });
+  const key = `${resolved.profileId}:${resolved.page}:${resolved.padId}`;
+  const pressResult = await scorePadPressDetector.press(key);
+  console.info("[MIDI TRACE] assigned.detector-result", { key, pressResultKind: pressResult.kind });
+  if (pressResult.kind === "double") {
+    const result = pressResult.result;
+    return { ...result, action: "score10", page: resolved.page, padId: resolved.padId };
+  }
+  return { accepted: true, action: "score-pending", page: resolved.page, padId: resolved.padId };
 }
 
 function sendPadTriggerToWindow(payload) {
@@ -143,6 +311,28 @@ app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 function resolveAppAsset(...segments) {
   return pathToFileURL(path.join(app.getAppPath(), ...segments)).href;
+}
+
+async function registerLocalAudioProtocol() {
+  await protocol.handle("rockomix-audio", async (request) => {
+    const relativePath = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, "");
+    if (!relativePath.startsWith("sounds/") || relativePath.includes("..")) return new Response("Not found", { status: 404 });
+    const filePath = path.join(app.getAppPath(), "assets", "audio", relativePath.slice("sounds/".length));
+    try {
+      await fs.promises.access(filePath, fs.constants.R_OK);
+      const response = await net.fetch(pathToFileURL(filePath).href);
+      if (!response.ok) return new Response("Not found", { status: response.status });
+      const headers = new Headers(response.headers);
+      headers.set("Content-Type", "audio/mpeg");
+      headers.set("Access-Control-Allow-Origin", "*");
+      headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+      headers.set("Access-Control-Allow-Headers", "Range, Content-Type");
+      headers.set("Cache-Control", "no-cache");
+      return new Response(await response.arrayBuffer(), { status: response.status, headers });
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  });
 }
 
 function createWindowOptions(extra = {}) {
@@ -196,6 +386,39 @@ function createShowroomWindow() {
     autoHideMenuBar: true,
   }));
   showroomWindow.setMenuBarVisibility(false);
+  showroomWindow.webContents.on("select-bluetooth-device", (event, devices, callback) => {
+    event.preventDefault();
+    const pocket = (Array.isArray(devices) ? devices : []).find((device) => {
+      return BLE_DEVICE_NAME_PATTERN.test(String(device?.deviceName || "").trim());
+    });
+    if (pocket) {
+      callback(pocket.deviceId);
+      return;
+    }
+    // Electron emits this event repeatedly while the scan is in progress.
+    // Do not cancel requestDevice() just because the first list is empty.
+  });
+  const bluetoothSession = showroomWindow.webContents.session;
+  if (typeof bluetoothSession.setBluetoothPairingHandler === "function") {
+    bluetoothSession.setBluetoothPairingHandler((details, callback) => {
+      const pairingKind = String(details?.pairingKind || "confirm");
+      const message = pairingKind === "providePin"
+        ? "El SMC-PAD Pocket solicita un PIN Bluetooth."
+        : "¿Permitir el emparejamiento Bluetooth del SMC-PAD Pocket?";
+      void dialog.showMessageBox(showroomWindow, {
+        type: "question",
+        buttons: ["Cancelar", "Permitir"],
+        defaultId: 0,
+        cancelId: 0,
+        title: "Bluetooth MIDI",
+        message,
+        detail: pairingKind === "confirmPin" && details?.pin
+          ? `Confirma el PIN ${details.pin} en el dispositivo.`
+          : undefined,
+      }).then(({ response }) => callback({ confirmed: response === 1 }))
+        .catch(() => callback({ confirmed: false }));
+    });
+  }
   showroomWindow.loadFile(path.join(__dirname, "index.html"));
   showroomWindow.on("closed", () => {
     showroomWindow = undefined;
@@ -214,7 +437,7 @@ function showOrCreateShowroomWindow() {
   showroomWindow.focus();
 }
 
-function createShowPadWindow() {
+function createShowPadWindow({ visible = true } = {}) {
   showPadReady = false;
   showPadWindow = new BrowserWindow(createWindowOptions({
     ...SHOW_PAD_SIZE,
@@ -230,12 +453,22 @@ function createShowPadWindow() {
     query: { view: "pads" },
   });
   showPadWindow.webContents.on("did-start-loading", () => { showPadReady = false; });
-  showPadWindow.once("ready-to-show", () => showPadWindow?.show());
+  showPadWindow.once("ready-to-show", () => {
+    if (visible) showPadWindow?.show();
+  });
   showPadWindow.on("closed", () => {
     showPadWindow = undefined;
     showPadReady = false;
+    activeShowFxPage = 1;
     queuedPadTriggers.length = 0;
   });
+}
+
+function ensureShowPadWindowHidden() {
+  if (!showPadWindow || showPadWindow.isDestroyed()) {
+    createShowPadWindow({ visible: false });
+  }
+  return showPadWindow;
 }
 
 function showOrCreateShowPadWindow() {
@@ -376,8 +609,9 @@ function beginManualScoreClose() {
   return true;
 }
 
-const engine = new LocalShowEngine();
+const engine = new EngineCore();
 engine.register("SCORE_SHOW", (command) => {
+  console.info("[MIDI TRACE] SCORE_SHOW.handler", { source: command.source, id_pad: command.id_pad, params: command.params, requestId: command.requestId });
   if (false) {
     return { accepted: false, error: "El cierre de SCORE está en curso." };
   }
@@ -430,7 +664,10 @@ engine.register("FX_PLAY", (command) => {
 // ENGINE decide qué acción corresponde a cada PAD. La interfaz nunca ejecuta
 // directamente una acción de PC: solicita PAD_TRIGGER y espera la respuesta.
 engine.register("PAD_TRIGGER", async (command) => {
-  const page = Number(command.params.page);
+  const requestedPage = Number(command.params.page);
+  const page = command.params.origin === "midi" && showPadWindow && !showPadWindow.isDestroyed()
+    ? activeShowFxPage
+    : requestedPage;
   const padId = Number(command.params.padId);
   if (!Number.isInteger(page) || page < 1 || !Number.isInteger(padId) || padId < 1 || padId > 16) {
     return { accepted: false, error: "PAD_TRIGGER requiere page y padId válidos." };
@@ -456,8 +693,12 @@ engine.register("PAD_TRIGGER", async (command) => {
     return { ...scoreResult, action, page, padId };
   }
 
-  if (!showPadWindow || showPadWindow.isDestroyed()) showOrCreateShowPadWindow();
+  ensureShowPadWindowHidden();
+  const wasReady = showPadReady && showPadWindow && !showPadWindow.isDestroyed();
   const sent = sendPadTriggerToWindow(visualEvent);
+  if (!sent && !wasReady && queuedPadTriggers.includes(visualEvent)) {
+    return { accepted: true, action: "fx", page, padId };
+  }
   return { accepted: sent, action: "fx", page, padId, error: sent ? undefined : "SHOW PAD FX no está disponible." };
 });
 
@@ -466,32 +707,91 @@ ipcMain.handle("show:open-pad", () => {
   showOrCreateShowPadWindow();
   return { opened: true };
 });
-ipcMain.handle("show:midi-input", (event, payload) => {
+ipcMain.handle("show:midi-input", async (event, payload) => {
   if (!showroomWindow || event.sender !== showroomWindow.webContents) {
     return { accepted: false, error: "Origen MIDI no autorizado." };
   }
-  const status = Number(payload?.status);
-  const command = status & 0xf0;
-  const velocity = Number(payload?.velocity) || 0;
-  if (command !== 0x90 || velocity <= 0) return { accepted: false, ignored: true };
-  const resolved = resolveMidiPad(payload?.deviceName, Number(payload?.note), payload?.deviceId);
-  if (!resolved) return { accepted: false, error: "Nota MIDI sin mapeo para este dispositivo." };
-  const channel = (status & 0x0f) + 1;
-  return engine.dispatch({
-    type: "PAD_TRIGGER",
-    id_pad: `pad-${resolved.page}-${resolved.padId}`,
-    source: "pc",
-    params: {
-      ...resolved,
-      channel,
-      note: Number(payload.note),
-      velocity,
-      deviceId: String(payload.deviceId || ""),
-      deviceName: String(payload.deviceName || ""),
-      origin: "midi",
-    },
-    requestId: createRequestId(),
-  });
+  if (!midiManager) return { accepted: false, error: "MIDI manager is not ready." };
+  const scoreResult = await handleAssignedScoreMidi(payload);
+  if (scoreResult) return scoreResult;
+  return midiManager.handleMidiMessage(payload);
+});
+
+ipcMain.handle("show:score-pad-assignment-get", (event) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents) return null;
+  return scorePadAssignment ? { ...scorePadAssignment } : defaultScorePadAssignment();
+});
+
+ipcMain.handle("show:score-pad-assignment-begin", (event) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents || !midiManager) {
+    return { accepted: false, error: "Origen MIDI no autorizado." };
+  }
+  if (!midiManager.getState().connectedDeviceId) {
+    return { accepted: false, error: "Conecta un dispositivo MIDI antes de asignar." };
+  }
+  scorePadAssignmentMode = true;
+  return { accepted: true };
+});
+
+ipcMain.handle("show:score-pad-assignment-cancel", (event) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents) return { accepted: false };
+  scorePadAssignmentMode = false;
+  return { accepted: true };
+});
+
+ipcMain.on("show:midi-devices", (event, devices) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents || !midiManager) return;
+  midiManager.setEnabled(true);
+  midiManager.updateDevices(devices);
+});
+
+ipcMain.handle("show:midi-physical-inventory", async (event) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents) return [];
+  if (process.platform !== "win32") return [];
+  const script = [
+    "$items = Get-PnpDevice -PresentOnly | Where-Object {",
+    "  $_.Class -eq 'MEDIA' -and",
+    "  $_.Status -eq 'OK' -and",
+    "  $_.InstanceId -match '^USB\\\\' -and",
+    "  $_.InstanceId -notmatch '^(BOMEBUS|SWD|ROOT)\\\\'",
+    "} | ForEach-Object {",
+    "  $props = Get-PnpDeviceProperty -InstanceId $_.InstanceId -KeyName DEVPKEY_Device_HardwareIds -ErrorAction SilentlyContinue;",
+    "  [PSCustomObject]@{ deviceName = $_.FriendlyName; instanceId = $_.InstanceId; hardwareIds = @($props.Data); enumerator = 'USB'; status = $_.Status }",
+    "};",
+    "$items | ConvertTo-Json -Compress -Depth 4",
+  ].join(" ");
+  try {
+    const { stdout } = await execFileAsync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      windowsHide: true,
+      maxBuffer: 1024 * 1024,
+    });
+    const parsed = stdout.trim() ? JSON.parse(stdout) : [];
+    const devices = Array.isArray(parsed) ? parsed : [parsed];
+    console.info("SHOW MIDI physical inventory:", devices);
+    return devices.filter((device) => device?.instanceId && device?.deviceName);
+  } catch (error) {
+    console.warn("SHOW MIDI: no se pudo consultar el inventario PnP físico.", error.message);
+    return [];
+  }
+});
+
+ipcMain.on("show:midi-selection", (event, deviceId) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents || !midiManager) return;
+  midiManager.chooseDevice(deviceId);
+});
+
+ipcMain.handle("show:midi-preferred", (event) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents || !midiManager) return "";
+  return midiManager.preferredDeviceId;
+});
+
+ipcMain.handle("show:midi-connection", (event, payload) => {
+  if (!showroomWindow || event.sender !== showroomWindow.webContents || !midiManager) {
+    return { accepted: false, error: "MIDI manager is not ready." };
+  }
+  if (payload?.connected) return midiManager.markConnected(payload.deviceId);
+  midiManager.markDisconnected(payload?.deviceId, payload?.error);
+  return { accepted: true, connected: false, deviceId: payload?.deviceId };
 });
 
 ipcMain.handle("show:trigger-pad", (event, payload) => {
@@ -509,6 +809,12 @@ ipcMain.handle("show:trigger-pad", (event, payload) => {
     },
     requestId: createRequestId(),
   });
+});
+
+ipcMain.on("show:fx-page", (event, page) => {
+  if (!showPadWindow || event.sender !== showPadWindow.webContents) return;
+  const value = Number(page);
+  if (Number.isInteger(value) && value >= 1) activeShowFxPage = value;
 });
 
 ipcMain.on("show:register-pad-actions", (event, items) => {
@@ -531,8 +837,19 @@ ipcMain.on("score:fade-complete", () => {
   hideScoreWindow();
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await registerLocalAudioProtocol();
   loadInitialPadActions();
+  loadScorePadAssignment();
+  midiManager = new PcMidiManager({
+    profiles: midiProfiles,
+    dispatch: (command) => engine.dispatch(command),
+    preferredDeviceId: loadPreferredMidiDeviceId(),
+    savePreferredDevice: savePreferredMidiDeviceId,
+    onEvent: (event) => {
+      if (showroomWindow && !showroomWindow.isDestroyed()) showroomWindow.webContents.send("show-midi:event", event);
+    },
+  });
   Menu.setApplicationMenu(null);
   createShowroomWindow();
   createScoreWindow();

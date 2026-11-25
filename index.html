@@ -40,12 +40,17 @@
               </header>
               <div class="module-detail pad-detail">
                 <button id="midi-toggle" class="module-toggle" type="button" aria-label="Activar recepción MIDI en PC" aria-pressed="false"><span class="toggle-track" aria-hidden="true"><i></i></span><strong>INACTIVO</strong></button>
+                <div class="score-pad-assignment-row">
+                  <button id="assign-score-pad" class="button button-pad-assign" type="button" disabled hidden>🎹 ASIGNAR PADS</button>
+                </div>
               </div>
             </section>
             <section class="module-controls pad-controls" aria-label="Controles de SHOW PAD">
               <label class="control-label" for="midi-device">DISPOSITIVO MIDI</label>
-              <select id="midi-device" aria-label="Dispositivo MIDI"><option value="">Activa MIDI para buscar dispositivos</option></select>
-              <span id="midi-hint" class="control-hint">ENGINE · MIDI DESACTIVADO</span>
+          <select id="midi-device" aria-label="Dispositivo MIDI">
+            <option value="midi-scan">ESCANEAR DISPOSITIVOS</option>
+          </select>
+              <div id="midi-monitor" class="midi-monitor" aria-live="polite" aria-label="Monitor MIDI"><span class="midi-monitor-empty">Esperando datos MIDI...</span></div>
             </section>
           </div>
         </article>

@@ -17,6 +17,7 @@ function applyMode(mode, requestResize = true) {
   document.documentElement.dataset.showMode = mode;
   modeToggle.textContent = nextMode.toUpperCase();
   modeToggle.setAttribute('aria-label', `Cambiar a modo ${nextMode.toUpperCase()}`);
+  window.dispatchEvent(new Event('show-mode-change'));
 
   if (requestResize) {
     // Chromium puede ignorar resizeTo en ventanas no abiertas por script.
@@ -103,10 +104,114 @@ syncModeWithViewport();
 const midiToggle = document.querySelector('#midi-toggle');
 const midiDeviceSelect = document.querySelector('#midi-device');
 const midiHint = document.querySelector('#midi-hint');
+const midiMonitor = document.querySelector('#midi-monitor');
+const scorePadAssignButton = document.querySelector('#assign-score-pad');
+const midiMonitorLines = [];
 const midiDevicePicker = document.createElement('div');
 const midiDeviceTrigger = document.createElement('button');
 const midiDeviceMenu = document.createElement('div');
 let midiDevicePickerOpen = false;
+let scorePadAssignmentMode = false;
+
+function isMidiActuallyConnected() {
+  return Boolean(
+    pcMidiEnabled
+    && (Boolean(pcMidiInput) || pcBleDevice?.gatt?.connected === true),
+  );
+}
+
+async function refreshScorePadAssignmentUi() {
+  const active = isMidiActuallyConnected();
+  if (scorePadAssignButton) scorePadAssignButton.disabled = !active;
+  if (!active && scorePadAssignmentMode) {
+    scorePadAssignmentMode = false;
+    void window.showHost?.cancelScorePadAssignment?.();
+    if (scorePadAssignButton) scorePadAssignButton.textContent = '🎹 ASIGNAR PADS';
+  }
+  try {
+    // La asignaciÃ³n se conserva internamente; no se muestra como texto redundante.
+  } catch (error) {
+    console.warn('SHOWROOM: no se pudo leer la asignación de CALIFICAR.', error);
+  }
+}
+
+scorePadAssignButton?.addEventListener('click', async () => {
+  if (scorePadAssignmentMode) {
+    scorePadAssignmentMode = false;
+    await window.showHost?.cancelScorePadAssignment?.();
+    scorePadAssignButton.textContent = '🎹 ASIGNAR PADS';
+    return;
+  }
+  if (scorePadAssignButton.disabled) return;
+  const result = await window.showHost?.beginScorePadAssignment?.();
+  if (!result?.accepted) {
+    console.warn('SHOWROOM: no se pudo iniciar la asignación MIDI.', result?.error);
+    return;
+  }
+  scorePadAssignmentMode = true;
+  scorePadAssignButton.textContent = '🎹 ASIGNAR PADS';
+});
+
+function midiEventLabel(event) {
+  const type = event?.eventType || 'other';
+  const channel = String(Number(event?.channel) || 1).padStart(2, '0');
+  const data1 = String(Number(event?.data1 ?? event?.note) || 0).padStart(3, '0');
+  const data2 = String(Number(event?.data2 ?? event?.velocity) || 0).padStart(3, '0');
+  if (type === 'note-on') return `NOTE ON  CH ${channel}  NOTE ${data1}  VEL ${data2}`;
+  if (type === 'note-off') return `NOTE OFF CH ${channel}  NOTE ${data1}  VEL ${data2}`;
+  if (type === 'control-change') return `CC       CH ${channel}  CTRL ${data1}  VALUE ${data2}`;
+  if (type === 'program-change') return `PROGRAM  CH ${channel}  PROG ${data1}`;
+  if (type === 'pitch-bend') return `PITCH    CH ${channel}  VALUE ${data1}${data2}`;
+  if (type === 'poly-aftertouch') return `POLY AT  CH ${channel}  NOTE ${data1}  VALUE ${data2}`;
+  if (type === 'channel-aftertouch') return `CH AT    CH ${channel}  VALUE ${data1}`;
+  return `MIDI     CH ${channel}  DATA ${data1}  VALUE ${data2}`;
+}
+
+function midiMonitorVisibleLines() {
+  if (document.documentElement.dataset.showMode === 'mini') return 0;
+  return window.innerWidth >= 600 ? 6 : 2;
+}
+
+function renderMidiMonitor() {
+  if (!midiMonitor) return;
+  const visibleCount = midiMonitorVisibleLines();
+  midiMonitor.hidden = visibleCount === 0;
+  if (visibleCount === 0) return;
+  const visibleLines = midiMonitorLines.slice(-visibleCount);
+  midiMonitor.style.setProperty('--midi-monitor-lines', String(visibleCount));
+  midiMonitor.style.setProperty('--midi-monitor-height', visibleCount === 6 ? '6.9rem' : '2.8rem');
+  midiMonitor.replaceChildren();
+  for (const item of visibleLines) {
+    const line = document.createElement('div');
+    const kind = item.label.startsWith('NOTE ON') ? 'on' : item.label.startsWith('NOTE OFF') ? 'off' : item.label.startsWith('CC') ? 'cc' : 'other';
+    line.className = `midi-monitor-line midi-monitor-${kind}`;
+    line.textContent = item.identity ? `${item.label} · ${item.identity}` : item.label;
+    line.title = line.textContent;
+    midiMonitor.append(line);
+  }
+}
+
+function appendMidiMonitorEvent(event) {
+  if (!midiMonitor) return;
+  const identity = [event?.profileName, event?.deviceId].filter(Boolean).join(' · ');
+  midiMonitorLines.push({ label: midiEventLabel(event), identity });
+  renderMidiMonitor();
+  return;
+  midiMonitor.replaceChildren();
+  for (const item of midiMonitorLines) {
+    const line = document.createElement('div');
+    const kind = item.label.startsWith('NOTE ON') ? 'on' : item.label.startsWith('NOTE OFF') ? 'off' : item.label.startsWith('CC') ? 'cc' : 'other';
+    line.className = `midi-monitor-line midi-monitor-${kind}`;
+    line.textContent = item.identity ? `${item.label} · ${item.identity}` : item.label;
+    line.title = line.textContent;
+    midiMonitor.append(line);
+  }
+}
+
+window.showHost?.onMidiEvent?.(appendMidiMonitorEvent);
+window.addEventListener('resize', renderMidiMonitor);
+window.addEventListener('show-mode-change', renderMidiMonitor);
+renderMidiMonitor();
 
 function closeMidiDevicePicker() {
   midiDevicePickerOpen = false;
@@ -199,12 +304,29 @@ let pcMidiAccess = null;
 let pcMidiInput = null;
 let pcMidiEnabled = false;
 let pcMidiInitialized = false;
+let physicalMidiInventory = [];
+let physicalMidiInventoryReady = false;
 const MIDI_DEVICE_KEY = 'myrockomix-show-pc-midi-device';
+const BLE_POCKET_NAME = 'SMC-PAD Pocket-Bt';
+const BLE_POCKET_PROFILE_ID = 'm-vave-smc-pad-pocket';
+const BLE_POCKET_PROFILE_NAME = 'SMC-PAD POCKET';
+const BLE_MIXER_NAME = 'SMC-Mixer-Bt';
+const BLE_MIXER_PROFILE_ID = 'm-vave-smc-mixer';
+const BLE_MIXER_PROFILE_NAME = 'SMC-Mixer';
+const BLE_DEVICE_DEFINITIONS = [
+  { name: BLE_POCKET_NAME, profileId: BLE_POCKET_PROFILE_ID, profileName: BLE_POCKET_PROFILE_NAME, pattern: /^smc[\s-]*pad[\s-]*pocket(?:[\s-]*bt)?$/i },
+  { name: BLE_MIXER_NAME, profileId: BLE_MIXER_PROFILE_ID, profileName: BLE_MIXER_PROFILE_NAME, pattern: /^smc[\s-]*mixer(?:[\s-]*bt)?$/i },
+];
 let rememberedPcMidiId = '';
 let pcBleDevice = null;
+let pcBleAuthorizedDevices = [];
 let pcBleCharacteristic = null;
 let pcBleListener = null;
 let pcBleDisconnectListener = null;
+let pcBleConnectPromise = null;
+let pcBleReconnectTimer = null;
+let pcBleReconnectAttempt = 0;
+let pcBleManualDisconnect = false;
 const BLE_MIDI_SERVICE = '03b80e5a-ede8-4b33-a751-6ce34ec4c700';
 const BLE_MIDI_CHARACTERISTIC = '7772e5db-3868-4112-a1a9-f2669d106bf3';
 try { rememberedPcMidiId = localStorage.getItem(MIDI_DEVICE_KEY) || ''; } catch {}
@@ -215,15 +337,34 @@ function setPcMidiUi(active, message) {
   midiToggle?.setAttribute('aria-pressed', String(active));
   const label = midiToggle?.querySelector('strong');
   if (label) label.textContent = active ? 'DESCONECTAR' : 'INICIAR';
-  if (midiHint) midiHint.textContent = message;
+  setMidiConnectionLabel(active);
+}
+
+function setMidiConnectionLabel(connected) {
+  if (midiHint) midiHint.textContent = connected ? 'CONECTADO' : 'DESCONECTADO';
 }
 
 function detachPcMidiInput() {
-  if (pcMidiInput) pcMidiInput.onmidimessage = null;
+  const detachedInput = pcMidiInput;
+  if (detachedInput) detachedInput.onmidimessage = null;
   pcMidiInput = null;
+  if (detachedInput) {
+    void window.showHost?.reportMidiConnection?.({
+      deviceId: detachedInput.id,
+      connected: false,
+      error: 'MIDI DESACTIVADO',
+    });
+  }
+  void refreshScorePadAssignmentUi();
 }
 
 async function disconnectPcBleMidi() {
+  const disconnectedDeviceId = pcBleDevice ? `ble:${pcBleDevice.id}` : '';
+  pcBleManualDisconnect = true;
+  if (pcBleReconnectTimer) {
+    clearTimeout(pcBleReconnectTimer);
+    pcBleReconnectTimer = null;
+  }
   if (pcBleCharacteristic && pcBleListener) {
     try { pcBleCharacteristic.removeEventListener('characteristicvaluechanged', pcBleListener); } catch {}
     try { await pcBleCharacteristic.stopNotifications(); } catch {}
@@ -236,71 +377,273 @@ async function disconnectPcBleMidi() {
   pcBleCharacteristic = null;
   pcBleListener = null;
   pcBleDisconnectListener = null;
+  if (disconnectedDeviceId) {
+    window.showHost?.reportMidiConnection?.({
+      deviceId: disconnectedDeviceId,
+      connected: false,
+    });
+  }
+  void refreshScorePadAssignmentUi();
+}
+
+function normalizeMidiDeviceName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function isPocketConnectorInput(input) {
+  return /^smc[\s-]*pad[\s-]*pocket(?:[\s-]*bt)?(?:\s*\(.*\))?$/i.test(String(input?.name || '').trim())
+    || /^bomes*midi.*smc[\s-]*pad[\s-]*pocket/i.test(String(input?.name || '').trim());
 }
 
 function availablePcMidiInputs() {
-  return pcMidiAccess ? [...pcMidiAccess.inputs.values()].filter(input => input.state !== 'disconnected') : [];
+  if (!pcMidiAccess || !physicalMidiInventoryReady) return [];
+  const physicalNames = new Set(physicalMidiInventory.map(device => normalizeMidiDeviceName(device.deviceName)));
+  return [...pcMidiAccess.inputs.values()]
+    .filter(input => input.state !== 'disconnected')
+    .filter(input => physicalNames.has(normalizeMidiDeviceName(input.name)) || isPocketConnectorInput(input));
 }
 
-function refreshPcMidiDevices(preferredId = '') {
+async function refreshPhysicalMidiInventory() {
+  const inventory = await window.showHost?.getPhysicalMidiInventory?.();
+  physicalMidiInventory = Array.isArray(inventory) ? inventory : [];
+  physicalMidiInventoryReady = true;
+  console.info('SHOWROOM physical MIDI inventory:', physicalMidiInventory);
+  return physicalMidiInventory;
+}
+
+function getBleDefinition(device) {
+  return BLE_DEVICE_DEFINITIONS.find(definition => definition.pattern.test(String(device?.name || '').trim())) || null;
+}
+
+async function refreshAuthorizedBleDevices({ request = false } = {}) {
+  if (!navigator.bluetooth) return [];
+  try {
+    let devices = [];
+    if (request) {
+      console.info('SHOWROOM BLE: iniciando descubrimiento de Pocket/Mixer.');
+      const discovered = await navigator.bluetooth.requestDevice({
+        filters: [
+          { name: BLE_POCKET_NAME },
+          { namePrefix: 'SMC-PAD Pocket' },
+          { namePrefix: 'SMC-PADPocket' },
+          { name: BLE_MIXER_NAME },
+          { namePrefix: 'SMC-Mixer' },
+        ],
+        optionalServices: [BLE_MIDI_SERVICE],
+      });
+      console.info('SHOWROOM BLE: dispositivo descubierto:', {
+        id: discovered?.id,
+        name: discovered?.name,
+      });
+      devices = [discovered];
+    }
+    pcBleAuthorizedDevices = [...new Map(
+      devices.filter(device => getBleDefinition(device)).map(device => [device.id, device]),
+    ).values()];
+  } catch (error) {
+    if (error?.name !== 'NotFoundError') console.warn('SHOWROOM: no se pudieron consultar dispositivos BLE autorizados.', error);
+  }
+  refreshPcMidiDevices(midiDeviceSelect?.value || '');
+  reportCurrentMidiDevices();
+  return pcBleAuthorizedDevices;
+}
+
+function refreshPcMidiDevicesLegacy(preferredId = '') {
   if (!midiDeviceSelect) return;
   const inputs = availablePcMidiInputs();
-  const previous = preferredId || midiDeviceSelect.value || rememberedPcMidiId;
+  console.info('SHOWROOM Web MIDI endpoints:', pcMidiAccess
+    ? [...pcMidiAccess.inputs.values()].map(input => ({
+      id: input.id,
+      name: input.name,
+      manufacturer: input.manufacturer,
+      state: input.state,
+      connection: input.connection,
+      accepted: inputs.includes(input),
+    }))
+    : []);
+  console.info('SHOWROOM MIDI endpoints descartados por falta de asociacion PnP:', pcMidiAccess
+    ? [...pcMidiAccess.inputs.values()].filter(input => !inputs.includes(input))
+    : []);
+  const previous = preferredId || midiDeviceSelect.value || '';
   midiDeviceSelect.innerHTML = '';
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = inputs.length ? 'Selecciona dispositivo MIDI' : 'Selecciona MIDI o Bluetooth';
-  midiDeviceSelect.append(placeholder);
+  const scanOption = document.createElement('option');
+  scanOption.value = 'midi-scan';
+  scanOption.textContent = 'ESCANEAR DISPOSITIVOS';
+  midiDeviceSelect.append(scanOption);
   inputs.forEach(input => {
     const option = document.createElement('option');
     option.value = input.id;
     option.textContent = input.name || `Dispositivo MIDI ${input.id}`;
+    const definition = { name: input.name || 'DISPOSITIVO MIDI' };
+    const device = { id: input.id };
+    option.textContent = `${definition.name} · ${device.id === pcBleDevice?.id ? 'CONECTADO' : 'DISPONIBLE'}`;
     midiDeviceSelect.append(option);
   });
-  if (navigator.bluetooth) {
+  if (false && pcBleDevice && !pcBleAuthorizedDevices.some(device => device.id === pcBleDevice.id)) {
     const bleOption = document.createElement('option');
     bleOption.value = pcBleDevice ? `ble:${pcBleDevice.id}` : 'ble-connect';
     bleOption.textContent = pcBleDevice
       ? `${pcBleDevice.name || 'SMC-PAD'} · BLUETOOTH CONECTADO`
-      : '＋ Conectar SMC-PAD por Bluetooth';
+      : '';
     midiDeviceSelect.append(bleOption);
   }
+  for (const device of pcBleAuthorizedDevices) {
+    const option = document.createElement('option');
+    option.value = `ble:${device.id}`;
+    option.textContent = `${BLE_POCKET_NAME} · ${device.id === pcBleDevice?.id ? 'CONECTADO' : 'DISPONIBLE'}`;
+    midiDeviceSelect.append(option);
+  }
+  const bleOption = [...midiDeviceSelect.options].find(option => option.value === 'ble-connect' || option.value.startsWith('ble:'));
+  if (false && bleOption) {
+    bleOption.textContent = pcBleDevice
+      ? `${BLE_POCKET_NAME} · BLUETOOTH CONECTADO`
+      : `＋ Conectar ${BLE_POCKET_NAME}`;
+  }
   const selectedBle = pcBleDevice && previous === `ble:${pcBleDevice.id}`;
-  const selected = selectedBle ? null : (inputs.find(input => input.id === previous) || null);
+  const selectedInput = selectedBle ? null : (inputs.find(input => input.id === previous) || null);
+  const selectedAuthorizedBle = pcBleAuthorizedDevices.some(device => `ble:${device.id}` === previous);
+  const selected = selectedBle || selectedInput || selectedAuthorizedBle;
   if (selectedBle) midiDeviceSelect.value = `ble:${pcBleDevice.id}`;
-  else midiDeviceSelect.value = selected?.id || (previous === 'ble-connect' ? 'ble-connect' : '');
+  else if (selectedInput) midiDeviceSelect.value = selectedInput.id;
+  else if (selectedAuthorizedBle) midiDeviceSelect.value = previous;
+  else midiDeviceSelect.value = 'midi-scan';
   renderMidiDevicePicker();
   if (pcMidiInput && !inputs.some(input => input.id === pcMidiInput.id)) {
     detachPcMidiInput();
     setPcMidiUi(false, 'ENGINE - DISPOSITIVO MIDI DESCONECTADO');
   }
-  if (pcMidiEnabled && !selected && !selectedBle && midiHint) midiHint.textContent = 'ENGINE · ESPERANDO DISPOSITIVO MIDI';
+  if (pcMidiEnabled && !selected && !selectedBle) setMidiConnectionLabel(false);
+}
+
+function refreshPcMidiDevices(preferredId = '') {
+  if (!midiDeviceSelect) return;
+  const inputs = availablePcMidiInputs();
+  const previous = preferredId || midiDeviceSelect.value || '';
+  midiDeviceSelect.innerHTML = '';
+  const scanOption = document.createElement('option');
+  scanOption.value = 'midi-scan';
+  scanOption.textContent = 'ESCANEAR DISPOSITIVOS';
+  midiDeviceSelect.append(scanOption);
+  for (const input of inputs) {
+    const option = document.createElement('option');
+    option.value = input.id;
+    option.textContent = input.name || `Dispositivo MIDI ${input.id}`;
+    midiDeviceSelect.append(option);
+  }
+  for (const device of pcBleAuthorizedDevices) {
+    const definition = getBleDefinition(device);
+    if (!definition) continue;
+    const option = document.createElement('option');
+    option.value = `ble:${device.id}`;
+    option.textContent = `${definition.name} - ${device.id === pcBleDevice?.id ? 'CONECTADO' : 'DISPONIBLE'}`;
+    midiDeviceSelect.append(option);
+  }
+  const selectedBle = pcBleDevice && previous === `ble:${pcBleDevice.id}`;
+  const selectedInput = selectedBle ? null : (inputs.find(input => input.id === previous) || null);
+  const selectedAuthorizedBle = pcBleAuthorizedDevices.some(device => `ble:${device.id}` === previous);
+  if (selectedBle) midiDeviceSelect.value = `ble:${pcBleDevice.id}`;
+  else if (selectedInput) midiDeviceSelect.value = selectedInput.id;
+  else if (selectedAuthorizedBle) midiDeviceSelect.value = previous;
+  else midiDeviceSelect.value = 'midi-scan';
+  renderMidiDevicePicker();
+  if (pcMidiInput && !inputs.some(input => input.id === pcMidiInput.id)) {
+    detachPcMidiInput();
+    setPcMidiUi(false, 'ENGINE - DISPOSITIVO MIDI DESCONECTADO');
+  }
+  if (pcMidiEnabled && !selectedBle && !selectedInput && !selectedAuthorizedBle && midiHint) {
+    setMidiConnectionLabel(false);
+  }
+}
+
+function reportCurrentMidiDevicesLegacy() {
+  window.showHost?.reportMidiDevices?.([
+    ...availablePcMidiInputs().map(input => ({
+      deviceId: input.id,
+      deviceName: input.name || '',
+      manufacturer: input.manufacturer || '',
+      connected: pcMidiInput?.id === input.id,
+      state: pcMidiInput?.id === input.id ? 'connected' : input.state,
+    })),
+    ...pcBleAuthorizedDevices.map(device => ({
+      definition: getBleDefinition(device),
+      deviceId: `ble:${device.id}`,
+      deviceName: getBleDefinition(device)?.name || device.name || '',
+      deviceNameOriginal: device.name || getBleDefinition(device)?.name || '',
+      manufacturer: 'M-VAVE',
+      profileId: getBleDefinition(device)?.profileId,
+      profileName: getBleDefinition(device)?.profileName,
+      transport: 'ble-midi',
+      connected: pcBleDevice?.id === device.id,
+      state: pcBleDevice?.id === device.id ? 'connected' : 'available',
+    })),
+  ]);
+}
+
+function reportCurrentMidiDevices() {
+  window.showHost?.reportMidiDevices?.([
+    ...availablePcMidiInputs().map(input => ({
+      deviceId: input.id,
+      deviceName: input.name || '',
+      manufacturer: input.manufacturer || '',
+      connected: pcMidiInput?.id === input.id,
+      state: pcMidiInput?.id === input.id ? 'connected' : input.state,
+    })),
+    ...pcBleAuthorizedDevices.map(device => {
+      const definition = getBleDefinition(device);
+      if (!definition) return null;
+      return {
+        deviceId: `ble:${device.id}`,
+        deviceName: definition.name,
+        deviceNameOriginal: device.name || definition.name,
+        manufacturer: 'M-VAVE',
+        profileId: definition.profileId,
+        profileName: definition.profileName,
+        transport: 'ble-midi',
+        connected: pcBleDevice?.id === device.id,
+        state: pcBleDevice?.id === device.id ? 'connected' : 'available',
+      };
+    }).filter(Boolean),
+  ]);
 }
 
 function sendRawMidiToEngine(input, data, timestamp = Date.now()) {
-  if (!pcMidiEnabled || !data || data.length < 3 || !window.showHost?.sendMidiInput) return;
+  console.info('[MIDI TRACE] showroom.raw-input', {
+    input: { id: input?.id, name: input?.name, profileId: input?.profileId, profileName: input?.profileName, transport: input?.transport },
+    data: Array.from(data || []),
+    timestamp,
+    enabled: pcMidiEnabled,
+  });
+  if (!pcMidiEnabled || !data || data.length < 2 || !window.showHost?.sendMidiInput) return;
   const status = data[0] & 0xff;
-  const command = status & 0xf0;
   const velocity = Number(data[2]) || 0;
-  if (command !== 0x90 || velocity <= 0) return;
-  void window.showHost.sendMidiInput({
+  const payload = {
     deviceId: input.id,
     deviceName: input.name || '',
+    deviceNameOriginal: input.deviceNameOriginal || input.name || '',
     manufacturer: input.manufacturer || '',
+    transport: input.id.startsWith('ble:') ? 'ble-midi' : 'midi',
+    profileId: input.profileId || (input.id.startsWith('ble:') ? BLE_POCKET_PROFILE_ID : undefined),
+    profileName: input.profileName || (input.id.startsWith('ble:') ? BLE_POCKET_PROFILE_NAME : undefined),
     status,
     note: Number(data[1]),
     velocity,
+    data1: Number(data[1]),
+    data2: Number(data[2]) || 0,
     timestamp: Number(timestamp) || Date.now(),
-  }).then(result => {
-    if (result?.accepted && midiHint) {
-      const action = result.action === 'fx' ? 'FX' : result.action === 'score10' ? 'SCORE 10' : result.action === 'score' ? 'SCORE' : 'ENGINE';
-      midiHint.textContent = `ENGINE · ${action} · PAD ${String(result.padId || '').padStart(2, '0')}`;
+  };
+  console.info('[MIDI TRACE] showroom.send-midi-input', payload);
+  void window.showHost.sendMidiInput(payload).then(result => {
+    if (result?.assignment) {
+      scorePadAssignmentMode = false;
+      if (scorePadAssignButton) scorePadAssignButton.textContent = '🎹 ASIGNAR PADS';
+      void refreshScorePadAssignmentUi();
+    } else if (result?.accepted) {
+      setMidiConnectionLabel(true);
     } else if (result?.error && midiHint) {
-      midiHint.textContent = `ENGINE · ${result.error}`;
+      console.warn('SHOWROOM MIDI:', result.error);
     }
   }).catch(error => {
     console.error('SHOWROOM MIDI → ENGINE:', error);
-    if (midiHint) midiHint.textContent = 'ENGINE · ERROR AL ENVIAR MIDI';
   });
 }
 
@@ -325,34 +668,63 @@ function parsePcBleMidiPacket(buffer) {
     for (let n = 0; n < length; n++) data.push(bytes[i++]);
     sendRawMidiToEngine({
       id: `ble:${pcBleDevice?.id || 'smc-pad'}`,
-      name: pcBleDevice?.name || 'SMC-PAD Pocket',
+      name: getBleDefinition(pcBleDevice)?.name || pcBleDevice?.name || '',
+      deviceNameOriginal: pcBleDevice?.name || getBleDefinition(pcBleDevice)?.name || '',
       manufacturer: 'M-VAVE',
+      profileId: getBleDefinition(pcBleDevice)?.profileId,
+      profileName: getBleDefinition(pcBleDevice)?.profileName,
     }, new Uint8Array(data));
   }
 }
 
 async function connectPcBleMidi(preselectedDevice = null) {
+  if (pcBleConnectPromise) return pcBleConnectPromise;
+  pcBleConnectPromise = connectPcBleMidiInternal(preselectedDevice);
+  try {
+    return await pcBleConnectPromise;
+  } finally {
+    pcBleConnectPromise = null;
+  }
+}
+
+async function connectPcBleMidiInternal(preselectedDevice = null) {
   if (!navigator.bluetooth) {
-    if (midiHint) midiHint.textContent = 'BLUETOOTH MIDI NO DISPONIBLE';
+    setPcMidiUi(false);
     return;
   }
   let device = preselectedDevice;
   try {
-    if (!device && navigator.bluetooth.getDevices) {
-      const authorized = await navigator.bluetooth.getDevices();
-      device = authorized.find(item => rememberedPcMidiId === `ble:${item.id}` || (rememberedPcMidiId && item.name === rememberedPcMidiId)) || null;
-    }
     if (!device) {
       device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'SMC-PAD' }, { namePrefix: 'SMC PAD' }, { namePrefix: 'SMC-Mixer' }, { services: [BLE_MIDI_SERVICE] }],
+        filters: [
+          { name: BLE_POCKET_NAME },
+          { namePrefix: 'SMC-PAD Pocket' },
+          { namePrefix: 'SMC-PADPocket' },
+          { name: BLE_MIXER_NAME },
+          { namePrefix: 'SMC-Mixer' },
+        ],
         optionalServices: [BLE_MIDI_SERVICE],
       });
     }
+    const definition = getBleDefinition(device);
+    if (!definition) throw new Error('El dispositivo Bluetooth seleccionado no es compatible.');
+    pcBleAuthorizedDevices = [...new Map(
+      [...pcBleAuthorizedDevices, device].filter(item => getBleDefinition(item)).map(item => [item.id, item]),
+    ).values()];
+    pcBleManualDisconnect = false;
     pcBleDevice = device;
+      console.info('SHOWROOM BLE: conectando GATT:', {
+        id: device.id,
+        name: device.name,
+        profileId: definition.profileId,
+        service: BLE_MIDI_SERVICE,
+        characteristic: BLE_MIDI_CHARACTERISTIC,
+      });
     const server = device.gatt.connected ? device.gatt : await device.gatt.connect();
     const service = await server.getPrimaryService(BLE_MIDI_SERVICE);
     pcBleCharacteristic = await service.getCharacteristic(BLE_MIDI_CHARACTERISTIC);
     await pcBleCharacteristic.startNotifications();
+      console.info('SHOWROOM BLE: notificaciones MIDI activas:', device.id);
     pcBleListener = event => {
       const value = event.target.value;
       parsePcBleMidiPacket(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
@@ -367,8 +739,19 @@ async function connectPcBleMidi(preselectedDevice = null) {
       pcBleCharacteristic = null;
       pcBleListener = null;
       pcBleDisconnectListener = null;
+      if (pcMidiEnabled && !pcBleManualDisconnect) {
+        pcBleReconnectAttempt = Math.min(pcBleReconnectAttempt + 1, 6);
+        const delay = Math.min(1000 * (2 ** (pcBleReconnectAttempt - 1)), 30_000);
+        pcBleReconnectTimer = setTimeout(() => {
+          pcBleReconnectTimer = null;
+          void reconnectRememberedPcBleMidi();
+        }, delay);
+      }
+      window.showHost?.reportMidiConnection?.({ deviceId: `ble:${device.id}`, connected: false, error: 'BLUETOOTH MIDI DESCONECTADO' });
+      reportCurrentMidiDevices();
       refreshPcMidiDevices();
-      if (midiHint) midiHint.textContent = 'ENGINE · BLUETOOTH MIDI DESCONECTADO';
+      void refreshScorePadAssignmentUi();
+      setMidiConnectionLabel(false);
     };
     device.addEventListener('gattserverdisconnected', pcBleDisconnectListener);
     rememberedPcMidiId = `ble:${device.id}`;
@@ -376,7 +759,11 @@ async function connectPcBleMidi(preselectedDevice = null) {
     detachPcMidiInput();
     refreshPcMidiDevices(rememberedPcMidiId);
     midiDeviceSelect.value = `ble:${device.id}`;
-    if (midiHint) midiHint.textContent = `ENGINE · SMC-PAD BLUETOOTH CONECTADO`;
+    reportCurrentMidiDevices();
+    setMidiConnectionLabel(true);
+    window.showHost?.reportMidiConnection?.({ deviceId: `ble:${device.id}`, connected: true });
+    pcBleReconnectAttempt = 0;
+    void refreshScorePadAssignmentUi();
   } catch (error) {
     if (pcBleDevice === device) {
       pcBleDevice = null;
@@ -386,19 +773,52 @@ async function connectPcBleMidi(preselectedDevice = null) {
     }
     console.error('SHOWROOM BLE MIDI:', error);
     refreshPcMidiDevices();
-    if (midiHint) midiHint.textContent = error?.name === 'NotFoundError' ? 'NO SE ENCONTRÓ SMC-PAD' : 'NO SE PUDO CONECTAR BLUETOOTH MIDI';
+    setPcMidiUi(false);
   }
 }
 
-function attachPcMidiInput(input) {
+async function reconnectRememberedPcBleMidi() {
+  if (!navigator.bluetooth?.getDevices || !rememberedPcMidiId.startsWith('ble:') || pcBleDevice) return false;
+  try {
+    const devices = await navigator.bluetooth.getDevices();
+    const device = devices.find(item => `ble:${item.id}` === rememberedPcMidiId);
+    if (!device) return false;
+    await connectPcBleMidi(device);
+    void refreshScorePadAssignmentUi();
+    return true;
+  } catch (error) {
+    console.warn('SHOWROOM: no se pudo reconectar el dispositivo BLE preferido.', error);
+    return false;
+  }
+}
+
+async function attachPcMidiInput(input) {
   detachPcMidiInput();
   if (!input) return;
-  if (pcBleDevice) void disconnectPcBleMidi();
-  pcMidiInput = input;
-  rememberedPcMidiId = input.id;
-  try { localStorage.setItem(MIDI_DEVICE_KEY, input.id); } catch {}
-  input.onmidimessage = event => sendRawMidiToEngine(input, event.data, event.timeStamp);
-  if (midiHint) midiHint.textContent = `ENGINE · MIDI CONECTADO · ${input.name || 'DISPOSITIVO MIDI'}`;
+  if (pcBleDevice) await disconnectPcBleMidi();
+  try {
+    if (typeof input.open === 'function') await input.open();
+    input.onmidimessage = event => sendRawMidiToEngine(input, event.data, event.timeStamp);
+    pcMidiInput = input;
+    reportCurrentMidiDevices();
+    const result = await window.showHost?.reportMidiConnection?.({ deviceId: input.id, connected: true });
+    if (!result?.accepted) throw new Error(result?.error || 'MIDI device was not accepted as active.');
+    rememberedPcMidiId = input.id;
+    try { localStorage.setItem(MIDI_DEVICE_KEY, input.id); } catch {}
+    void refreshScorePadAssignmentUi();
+  setMidiConnectionLabel(true);
+    return true;
+  } catch (error) {
+    input.onmidimessage = null;
+    if (pcMidiInput === input) {
+      pcMidiInput = null;
+      reportCurrentMidiDevices();
+    }
+    try { if (typeof input.close === 'function') await input.close(); } catch {}
+    console.warn('SHOWROOM: no se pudo activar el puerto MIDI.', error);
+    setMidiConnectionLabel(false);
+    return false;
+  }
 }
 
 async function initializePcMidi() {
@@ -411,13 +831,18 @@ async function initializePcMidi() {
   if (navigator.requestMIDIAccess && !pcMidiAccess) {
     try {
       pcMidiAccess = await navigator.requestMIDIAccess({ sysex: false });
-      pcMidiAccess.onstatechange = () => refreshPcMidiDevices();
+       pcMidiAccess.onstatechange = () => {
+         void refreshPhysicalMidiInventory().then(() => refreshPcMidiDevices());
+       };
     } catch (error) {
       console.warn('SHOWROOM: Web MIDI no disponible; se mantiene la opcion Bluetooth.', error);
     }
   }
-  setPcMidiUi(false, 'ENGINE - SELECCIONA DISPOSITIVO MIDI');
+  await refreshPhysicalMidiInventory();
+  await refreshAuthorizedBleDevices();
+  setPcMidiUi(false, 'ENGINE · SIN DISPOSITIVO CONECTADO');
   refreshPcMidiDevices(midiDeviceSelect?.value || '');
+  reportCurrentMidiDevices();
 }
 
 async function enablePcMidi() {
@@ -430,26 +855,39 @@ async function enablePcMidi() {
   if (navigator.requestMIDIAccess && !pcMidiAccess) {
     try {
       pcMidiAccess = await navigator.requestMIDIAccess({ sysex: false });
-      pcMidiAccess.onstatechange = () => refreshPcMidiDevices();
+       pcMidiAccess.onstatechange = () => {
+         void refreshPhysicalMidiInventory().then(() => refreshPcMidiDevices());
+       };
     } catch (error) {
       console.warn('SHOWROOM: Web MIDI no disponible; se mantiene la opción Bluetooth.', error);
     }
   }
-  refreshPcMidiDevices(midiDeviceSelect?.value || rememberedPcMidiId);
+  refreshPcMidiDevices(midiDeviceSelect?.value || '');
+  reportCurrentMidiDevices();
   const selectedValue = midiDeviceSelect?.value || '';
+  if (selectedValue === 'ble-connect') {
+    await connectPcBleMidi();
+    return;
+  }
+  if (selectedValue.startsWith('ble:') && !pcBleDevice) {
+    await reconnectRememberedPcBleMidi();
+    if (!pcBleDevice) await connectPcBleMidi();
+    return;
+  }
   const selectedInput = pcMidiAccess?.inputs.get(selectedValue);
   if (selectedInput && selectedInput.state !== 'disconnected') {
     setPcMidiUi(true, `ENGINE - CONECTANDO - ${selectedInput.name || 'DISPOSITIVO MIDI'}`);
-    attachPcMidiInput(selectedInput);
+    await attachPcMidiInput(selectedInput);
   } else if (!pcBleDevice) {
     setPcMidiUi(false, 'ENGINE Â· SELECCIONA UN DISPOSITIVO MIDI');
   }
+  if (!pcMidiInput && !pcBleDevice) setPcMidiUi(true, 'ENGINE · SIN DISPOSITIVO CONECTADO');
   if (!pcMidiAccess && !navigator.bluetooth) {
     setPcMidiUi(false, 'NO SE PUDO ACTIVAR WEB MIDI');
     return;
   }
   if (!pcMidiInput && !pcBleDevice && availablePcMidiInputs().length === 0 && midiHint) {
-    midiHint.textContent = 'ENGINE · ESPERANDO DISPOSITIVO MIDI';
+    setMidiConnectionLabel(false);
   }
 }
 
@@ -463,14 +901,62 @@ midiToggle?.addEventListener('click', () => {
   void enablePcMidi();
 });
 
-midiDeviceSelect?.addEventListener('change', () => {
+midiDeviceSelect?.addEventListener('change', async () => {
+  const value = midiDeviceSelect.value;
+  if (value === 'midi-scan') {
+    await refreshPhysicalMidiInventory();
+    await refreshAuthorizedBleDevices({ request: true });
+    if (!pcMidiInput && !pcBleDevice) setMidiConnectionLabel(false);
+    renderMidiDevicePicker();
+    return;
+  }
+  if (value.startsWith('ble:')) {
+    const device = pcBleAuthorizedDevices.find(item => `ble:${item.id}` === value);
+    if (!device) {
+      await refreshAuthorizedBleDevices();
+      return;
+    }
+    detachPcMidiInput();
+    await disconnectPcBleMidi();
+    setPcMidiUi(true, `CONECTANDO · ${BLE_POCKET_NAME}`);
+    await connectPcBleMidi(device);
+    if (!pcBleDevice) setPcMidiUi(false, 'SIN DISPOSITIVO CONECTADO');
+    renderMidiDevicePicker();
+    return;
+  }
+  const selectedInput = pcMidiAccess?.inputs.get(value);
+  if (selectedInput && selectedInput.state !== 'disconnected') {
+    detachPcMidiInput();
+    await disconnectPcBleMidi();
+    setPcMidiUi(true, `CONECTANDO · ${selectedInput.name || 'DISPOSITIVO MIDI'}`);
+    await attachPcMidiInput(selectedInput);
+    renderMidiDevicePicker();
+    return;
+  }
+  setMidiConnectionLabel(false);
+  renderMidiDevicePicker();
+  return;
+
+  {
+  let disconnectPromise = Promise.resolve();
   if (pcMidiEnabled) {
     detachPcMidiInput();
-    void disconnectPcBleMidi();
+    disconnectPromise = disconnectPcBleMidi();
     setPcMidiUi(false, 'ENGINE - DISPOSITIVO CAMBIADO - PULSA INICIAR');
   }
   const value = midiDeviceSelect.value;
   if (value === 'ble-connect' || value.startsWith('ble:')) {
+    if (value.startsWith('ble:')) {
+      rememberedPcMidiId = value;
+      try { localStorage.setItem(MIDI_DEVICE_KEY, value); } catch {}
+    }
+    if (pcMidiEnabled) {
+      setPcMidiUi(true, `ENGINE · CONECTANDO · ${BLE_POCKET_NAME}`);
+      void disconnectPromise.then(() => value === 'ble-connect' ? connectPcBleMidi() : reconnectRememberedPcBleMidi().then((connected) => {
+        if (!connected && !pcBleDevice) return connectPcBleMidi();
+        return undefined;
+      }));
+    }
     renderMidiDevicePicker();
     return;
   }
@@ -478,9 +964,11 @@ midiDeviceSelect?.addEventListener('change', () => {
   if (selected) {
     rememberedPcMidiId = selected.id;
     try { localStorage.setItem(MIDI_DEVICE_KEY, selected.id); } catch {}
+    window.showHost?.reportMidiSelection?.(selected.id);
   }
-  if (midiHint) midiHint.textContent = selected ? `SELECCIONADO - ${selected.name || 'DISPOSITIVO MIDI'} - PULSA INICIAR` : 'ENGINE - SELECCIONA DISPOSITIVO MIDI';
+  setMidiConnectionLabel(false);
   renderMidiDevicePicker();
+  }
 });
 
 void initializePcMidi();
