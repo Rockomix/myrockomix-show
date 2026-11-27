@@ -2,7 +2,34 @@
   "use strict";
 
   const REVEAL_AT = 4_000;
-  const SPIN_HIT_TIMES = [68, 298, 530, 706, 878, 1059, 1238, 1417, 1590, 1775, 2041, 2339, 2628, 2965, 3414];
+
+// Tiempos sincronizados con los 15 golpes del audio DING.
+// Adelanto visual para compensar la latencia.
+const SPIN_VISUAL_ADVANCE_MS = 40;
+
+// Golpes del audio, sin incluir el primero.
+// const SPIN_HIT_TIMES = [
+//  234, 459, 634, 813, 988, 1167, 1347,
+//  1526, 1705, 1980, 2280, 2564, 2903, 3352
+//];
+
+const SPIN_HIT_TIMES = [
+  280,
+  510,
+  690,
+  860,
+  1040,
+  1220,
+  1400,
+  1580,
+  1760,
+  2030,
+  2330,
+  2620,
+  2960,
+  3400
+];
+
 
   class ScoreController {
     constructor(elements) {
@@ -36,7 +63,13 @@
       this.elements.singer.textContent = `Calificación de ${result.singerName || "la interpretación"}`;
       this.elements.song.textContent = result.title || "";
       this.elements.song.hidden = !result.title;
-      for (const hitAt of SPIN_HIT_TIMES) this.scheduleAt(hitAt, () => this.renderSpinValue());
+      // Adelantar cada cambio visual 40 ms.
+      for (const hitAt of SPIN_HIT_TIMES) {
+        this.scheduleAt(
+          hitAt - SPIN_VISUAL_ADVANCE_MS,
+          () => this.renderSpinValue()
+        );
+      }
       this.scheduleAt(REVEAL_AT, () => this.reveal());
     }
 
@@ -51,8 +84,14 @@
 
     renderSpinValue() {
       if (!this.active || performance.now() - this.startedAt >= REVEAL_AT) return;
-      const elapsed = performance.now() - this.startedAt;
-      const completedHits = SPIN_HIT_TIMES.filter((hitAt) => hitAt <= elapsed).length;
+
+      const elapsed =
+        performance.now() - this.startedAt + SPIN_VISUAL_ADVANCE_MS;
+
+      const completedHits = SPIN_HIT_TIMES.filter(
+        (hitAt) => hitAt <= elapsed
+      ).length;
+
       this.elements.number.textContent = String(1 + (completedHits % 10));
     }
 

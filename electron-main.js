@@ -26,6 +26,9 @@ const SHOW_PAD_SIZE = { width: 540, height: 620 };
 const SCORE_PREFERRED_SIZE = { width: 1100, height: 700 };
 const SCORE_REVEAL_MIN_HOLD_MS = 8_000;
 const SCORE_REVEAL_MAX_HOLD_MS = 12_000;
+const SCORE_REVEAL_SHORT_LIMIT_MS = 5_000;
+const SCORE_REVEAL_SHORT_GRACE_MS = 2_000;
+const SCORE_REVEAL_LONG_GRACE_MS = 4_000;
 let showroomWindow;
 let showPadWindow;
 let scoreWindow;
@@ -566,10 +569,12 @@ function hideScoreWindow({ preserveCloseState = false } = {}) {
   // El audio deliberadamente no se pausa ni se destruye aquÃ­.
 }
 
-function scheduleScoreHideAfterReveal(durationMs = SCORE_REVEAL_MIN_HOLD_MS) {
+function scheduleScoreHideAfterReveal(durationMs) {
   const requested = Number(durationMs);
   const holdMs = Number.isFinite(requested)
-    ? Math.min(SCORE_REVEAL_MAX_HOLD_MS, Math.max(SCORE_REVEAL_MIN_HOLD_MS, requested))
+    ? requested + (requested < SCORE_REVEAL_SHORT_LIMIT_MS
+      ? SCORE_REVEAL_SHORT_GRACE_MS
+      : SCORE_REVEAL_LONG_GRACE_MS)
     : SCORE_REVEAL_MIN_HOLD_MS;
   if (scoreSequenceTimer) clearTimeout(scoreSequenceTimer);
   const elapsed = scoreRevealStartedAt === undefined ? 0 : Date.now() - scoreRevealStartedAt;
