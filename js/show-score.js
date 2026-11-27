@@ -9,14 +9,25 @@
       this.elements = elements;
       this.active = false;
       this.timers = [];
+      this.confetti = window.showConfettiCanvas.create(elements.confetti, {
+        particleCount: 500,
+        spread: 100,
+        startVelocity: 40,
+        gravity: 0.95,
+        ticks: 220,
+        scalar: 1,
+        colors: ["#fff2a8", "#ff6eb6", "#6ee7ff", "#bba2ff", "#ffffff", "#7dffb3"],
+      });
     }
 
     start(result) {
       this.clearTimers();
+      this.confetti.stop();
       this.active = true;
       // Reloj monotónico local ajustado a la marca de tiempo del ENGINE.
       this.startedAt = performance.now() - Math.max(0, Date.now() - result.startedAt);
       this.result = result;
+      this.elements.overlay.classList.remove("is-revealed");
       this.elements.overlay.classList.add("is-visible", "is-spinning");
       this.elements.overlay.setAttribute("aria-hidden", "false");
       this.elements.number.textContent = "1";
@@ -25,7 +36,6 @@
       this.elements.singer.textContent = `Calificación de ${result.singerName || "la interpretación"}`;
       this.elements.song.textContent = result.title || "";
       this.elements.song.hidden = !result.title;
-      this.elements.confetti.replaceChildren();
       for (const hitAt of SPIN_HIT_TIMES) this.scheduleAt(hitAt, () => this.renderSpinValue());
       this.scheduleAt(REVEAL_AT, () => this.reveal());
     }
@@ -61,15 +71,9 @@
       this.timers = [];
     }
 
+    // Lanza el mismo concepto de dos cañones laterales de myRockomix.party.
     fireConfetti() {
-      const colors = ["#fff2a8", "#ff6eb6", "#6ee7ff", "#bba2ff", "#ffffff"];
-      for (let index = 0; index < 52; index += 1) {
-        const piece = document.createElement("i");
-        piece.style.setProperty("--x", `${Math.round((Math.random() - 0.5) * 90)}vw`);
-        piece.style.setProperty("--delay", `${Math.round(Math.random() * 220)}ms`);
-        piece.style.setProperty("--color", colors[index % colors.length]);
-        this.elements.confetti.append(piece);
-      }
+      this.confetti.fire();
     }
   }
 
@@ -85,6 +89,7 @@
   window.showScorePresentation.onStart((result) => controller.start(result));
   window.showScorePresentation.onStop(() => {
     controller.clearTimers();
+    controller.confetti.stop();
     controller.active = false;
     controller.elements.overlay.classList.remove("is-spinning");
   });
